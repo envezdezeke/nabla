@@ -34,6 +34,12 @@ def test_bands_and_sector_cap():
     assert len(picks) == 15
 
 
+def test_failed_sector_lookup_keeps_full_book():
+    names = [f"T{i}" for i in range(40)]
+    score = pd.Series(np.arange(40, 0, -1.0), index=names)
+    assert len(book.select(score, pd.Series("all", index=names), held=[])) == 15
+
+
 def test_weights_sum_and_earnings_cap():
     picks = [f"T{i}" for i in range(15)]
     dtr = pd.Series([5.0] * 3 + [60.0] * 12, index=picks)
