@@ -9,7 +9,8 @@ The starter repo (`orkid-labs/utsa-investment-hackathon`) already answers: long-
 4. Is there a benchmark we are compared against (for example SPX), and is the score absolute or relative?
 
 ## Constraints the rules do not state
-5. Are there position limits, sector caps, or a minimum number of holdings? (Our working defaults are ~5% per name and ~25% per sector.)
+5. Does the weight sum really have to be 1.0 +/- 0.01? `RULES.md` says cash is the residual (a 0.8 book is 20% cash), but the scorer checks the sum against 1.0. Which governs, and is a cash-like ticker (for example a T-bill ETF) allowed in the universe?
+5b. Are there position limits, sector caps, or a minimum number of holdings? (Our working defaults are ~5% per name and ~25% per sector.)
 6. Are transaction costs or slippage applied in the scoring? Which execution price (close, next open)?
 7. How are option legs priced and filled in the judges' recompute? Is a bid-ask spread assumed? (No quote-level NBBO in the data.)
 8. Does the judges' `/backtest` recompute include dividends (the `adjust_dividends` option)? Should our backtest match that setting?

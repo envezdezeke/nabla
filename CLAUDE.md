@@ -15,7 +15,8 @@ https://github.com/orkid-labs/utsa-investment-hackathon
 - Status: waiting on the team data token. First step once we have it: `svq doctor`.
 
 ## Rules (from the starter repo's RULES.md)
-- Long-only: weights >= 0, sum to ~1.0 (+/- 1%); cash is the residual. No shorting stocks, no writing options.
+- Long-only: weights >= 0, sum to ~1.0 (+/- 1%). No shorting stocks, no writing options.
+- **Cash:** RULES.md says a 0.8 book means 20% cash, but the scorer (`rubric.yaml`) requires `/portfolio/holdings` weights to sum to 1.0 +/- 0.01, and the template's `/backtest` rejects weights not summing to ~1. Treat the sum as fixed at ~1.0 unless the workshop says otherwise. No raising cash in stress; stress response must happen inside the 1.0 (calmer-stock tilt, put sleeve funded from the same 1.0, possibly a cash-like ticker if one is in `ds.universe()`).
 - Only hedge: buy protective puts (OCC tickers like `O:AAPL250117P00220000`, as holdings legs).
 - Stay inside `ds.universe()`.
 - Trailing 30 calendar days = **sealed holdout** (`ds.holdout_cutoff()`). Never train, validate or backtest past it. Training window: 2017-01-01 to holdout cutoff.
@@ -52,8 +53,8 @@ Dropped: `liquidity_roc` (no clear direction, noisy). Liquidity gate comes from 
 
 ## Risk rules
 - Max position ~5%, sector cap ~25% (working defaults; confirm vs rules/workshop).
-- Volatility targeting: scale exposure down when realized vol spikes (cash is the residual).
-- Protective puts when `term_slope` inverts; keep total option weight small.
+- Stress response inside a fully invested book: tilt weights toward lower-vol, higher-quality names when stress is high (no cash raising; see Rules).
+- Protective puts when `term_slope` inverts; option legs count toward the 1.0 (a 3% put sleeve means stocks sum to 97%); keep total option weight small.
 
 ## Data hygiene (non-negotiable)
 - Point-in-time only: filing-date joins via `ds.fundamentals(asof=...)` / `/asof`. No look-ahead.
