@@ -1,3 +1,9 @@
-pandas
+# statevector SDK: pip install -e <starter repo>/sdk  (not on PyPI)
+fastapi>=0.110
+uvicorn>=0.29
+polars>=1.0
+pyarrow>=14.0
+pandas>=2.0
 numpy
 pytest
+httpx
