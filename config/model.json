@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "description": "Rung 1 of plan v5: equal-weight top 15 by a fixed five-factor composite, with liquidity filter, sector and earnings caps, entry/exit bands. No regime dial, no optimizer, no options.",
+  "factor_weights": {
+    "momentum": 1.0,
+    "guidance_velocity": 1.0,
+    "quality": 1.0,
+    "value": 1.0,
+    "vol_premium": 1.0
+  },
+  "liquidity": {"min_adv": 50000000, "min_price": 5.0, "amihud_drop_pct": 0.9},
+  "book": {"n": 15, "exit_rank": 30, "max_name": 0.10, "sector_cap": 0.30,
+           "earnings_cap": 0.06, "earnings_days": 30},
+  "backtest": {"start": "2018-01-01", "holdback_months": 6, "cost_model": "plan",
+               "book_value": 1000000}
+}

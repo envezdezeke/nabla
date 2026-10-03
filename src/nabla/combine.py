@@ -1,43 +1,30 @@
-"""Winsorize, sector-neutral z-score, and weighted composite."""
+"""Cross-sectional cleaning and the fixed-five composite for one date."""
+from __future__ import annotations
+
 import pandas as pd
 
-DEFAULT_WEIGHTS = {
-    "momentum": 0.25,
-    "revisions": 0.25,
-    "quality": 0.20,
-    "low_vol": 0.15,
-    "value": 0.10,
-    "reversal": 0.05,
-}
+
+def zscore(x: pd.Series, groups: pd.Series, clip: float = 3.0, min_group: int = 5) -> pd.Series:
+    """Winsorize at 1/99%, z-score within sector group, clip at +/-3.
+    Groups too small to z-score fall back to the whole cross-section."""
+    x = x.clip(x.quantile(0.01), x.quantile(0.99))
+    g = groups.reindex(x.index).fillna("other")
+    size = x.groupby(g).transform("count")
+    mu = x.groupby(g).transform("mean").where(size >= min_group, x.mean())
+    sd = x.groupby(g).transform("std").where(size >= min_group, x.std())
+    return ((x - mu) / sd.replace(0, float("nan"))).clip(-clip, clip)
 
 
-def winsorize(df: pd.DataFrame, lo: float = 0.01, hi: float = 0.99) -> pd.DataFrame:
-    """Clip each date's cross-section at the lo/hi quantiles."""
-    lower = df.quantile(lo, axis=1)
-    upper = df.quantile(hi, axis=1)
-    return df.clip(lower=lower, upper=upper, axis=0)
+def composite(ft: pd.DataFrame, groups: pd.Series, weights: dict[str, float]) -> pd.Series:
+    """Fixed-weight sum over all listed factors with missing = 0 (neutral).
+
+    Dividing by the full weight sum, not the available one, so a name with
+    fewer factors is not favored (v3 review, known issue 1).
+    """
+    total = sum(weights.values())
+    score = sum(zscore(ft[f], groups).fillna(0.0) * w for f, w in weights.items())
+    return score / total
 
 
-def sector_zscore(df: pd.DataFrame, sectors: pd.Series) -> pd.DataFrame:
-    """Z-score within sector per date. `sectors` maps ticker -> sector."""
-    out = df.copy()
-    for sector in sectors.dropna().unique():
-        cols = sectors.index[sectors == sector].intersection(df.columns)
-        block = df[cols]
-        std = block.std(axis=1).replace(0, float("nan"))
-        out[cols] = block.sub(block.mean(axis=1), axis=0).div(std, axis=0)
-    return out
-
-
-def composite(factors: dict, sectors: pd.Series, weights: dict | None = None) -> pd.DataFrame:
-    """Weighted sum of cleaned factor z-scores. Missing factors are skipped and
-    the remaining weights renormalized per cell."""
-    weights = weights or DEFAULT_WEIGHTS
-    num, den = 0, 0
-    for name, w in weights.items():
-        if name not in factors:
-            continue
-        z = sector_zscore(winsorize(factors[name]), sectors)
-        num = num + z.fillna(0) * w
-        den = den + z.notna() * w
-    return num / den.replace(0, float("nan"))
+def coverage(ft: pd.DataFrame, factors: list[str]) -> dict[str, float]:
+    return {f: float(ft[f].notna().mean()) for f in factors}
