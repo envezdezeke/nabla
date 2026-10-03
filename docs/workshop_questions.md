@@ -1,31 +1,21 @@
 # Workshop questions (Sat 3:15 PM, Investment Society)
 
-The starter repo (`orkid-labs/utsa-investment-hackathon`) already answers: long-only with no shorting or written options, protective puts as the only hedge, the universe (`ds.universe()`), the sealed 30-day holdout, the 2017 training start, filing-date joins, and the rubric breakdown. Only ask what is still open. Ordered by how much the answer changes the strategy.
+Already answered, so do not re-ask:
+- Cash can be held.
+- Scoring is mostly total return; Sharpe and drawdown still matter.
+- Transaction costs should be baked into our own model.
+- Our data stops at the holdout date; the model is tested on the 30 days after it.
+- We choose our own position and sector limits.
+- Plus everything in the starter repo (long-only, puts as the only hedge, the universe, filing-date joins, the rubric).
 
-## How the holdout is scored (biggest unknown)
-1. Beyond the rubric and repo audit, is there a live portfolio score on our holdings? If so, which metric: total return, Sharpe, or drawdown-penalized?
-2. How do judges apply the 30-day holdout to our endpoint? Do they call `/portfolio/holdings` once at the start and hold, or repeatedly (daily or weekly), letting us rebalance?
-3. Is the holdout the trailing 30 days inside the dataset (past data we cannot touch), or future days after the dataset ends?
-4. Is there a benchmark we are compared against (for example SPX), and is the score absolute or relative?
-
-## Constraints the rules do not state
-5. Does the weight sum really have to be 1.0 +/- 0.01? `RULES.md` says cash is the residual (a 0.8 book is 20% cash), but the scorer checks the sum against 1.0. Which governs, and is a cash-like ticker (for example a T-bill ETF) allowed in the universe?
-5b. Are there position limits, sector caps, or a minimum number of holdings? (Our working defaults are ~5% per name and ~25% per sector.)
-6. Are transaction costs or slippage applied in the scoring? Which execution price (close, next open)?
-7. How are option legs priced and filled in the judges' recompute? Is a bid-ask spread assumed? (No quote-level NBBO in the data.)
-8. Does the judges' `/backtest` recompute include dividends (the `adjust_dividends` option)? Should our backtest match that setting?
-
-## Data
-9. Is `ds.prices()` split- and dividend-adjusted, or raw closes?
-10. Is the sentinel ticker `ORKD` handled specially in scoring?
-11. Are there rate limits or latency limits on the hosted data server when our endpoint is called live?
-
-## "AI" requirement
-12. Does the strategy have to use ML, or does a signal-based model count as AI? How is it judged in the repo audit?
-13. Are LLMs or external APIs allowed in the pipeline? Is external data (for example VIX or news) allowed?
-
-## Submission and judging
-14. What is the exact deadline, and how long must the endpoint stay up?
-15. How are the rubric score, the repo audit, and the pitch weighted? What do the judges want in the pitch?
-16. Can we add endpoints and extra response fields beyond the five judged ones without penalty?
-17. Are there hosting limits for the endpoint (compute, cold start time against the 30-second timeout)?
+## Still open, most important first
+1. The rubric still checks that holdings weights sum to 1.0 +/- 0.01 (10 points), but cash is allowed. Which governs? Is a cash-like ticker (for example a T-bill ETF) in the universe?
+2. Is the book held static for the 30 test days, or can it be rebalanced? How often does the judge call `/portfolio/holdings`?
+3. What is the cost model: bps per trade for stocks and for options? Is a bid-ask spread assumed for option fills?
+4. How are prizes decided: top total return only, or a blend with Sharpe and drawdown? What weight does the repo audit and pitch get?
+5. Our data stops at the holdout date. Does `ds.holdout_cutoff()` (last trading day minus 30 days) still apply, or does the dataset already end where the test begins?
+6. Is `ds.prices()` split- and dividend-adjusted? Does the judges' `/backtest` recompute include dividends?
+7. What counts as "AI" in the repo audit? Are LLMs, external APIs or external data (VIX, news) allowed?
+8. How are option legs priced and marked in the judges' recompute, given missing prints?
+9. Exact deadline, and how long must the endpoint stay up? Any hosting or latency limits?
+10. Can we add endpoints and extra response fields beyond the five judged ones without penalty?
