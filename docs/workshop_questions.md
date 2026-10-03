@@ -1,7 +1,7 @@
 # Workshop questions (Sat 3:15 PM, Investment Society)
 
 Already answered, so do not re-ask:
-- Cash can be held.
+- Cash can be held, and the scoring will be changed so holding cash is not punished (re-pull the starter repo for the update).
 - Scoring is mostly total return; Sharpe and drawdown still matter.
 - Transaction costs should be baked into our own model.
 - Our data stops at the holdout date; the model is tested on the 30 days after it.
@@ -9,7 +9,7 @@ Already answered, so do not re-ask:
 - Plus everything in the starter repo (long-only, puts as the only hedge, the universe, filing-date joins, the rubric).
 
 ## Still open, most important first
-1. The rubric still checks that holdings weights sum to 1.0 +/- 0.01 (10 points), but cash is allowed. Which governs? Is a cash-like ticker (for example a T-bill ETF) in the universe?
+1. Has the starter repo's rubric been updated for cash yet? Is a cash-like ticker in the universe if we need one for the 1.0 sum?
 2. Is the book held static for the 30 test days, or can it be rebalanced? How often does the judge call `/portfolio/holdings`?
 3. What is the cost model: bps per trade for stocks and for options? Is a bid-ask spread assumed for option fills?
 4. How are prizes decided: top total return only, or a blend with Sharpe and drawdown? What weight does the repo audit and pitch get?

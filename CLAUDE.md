@@ -16,7 +16,7 @@ https://github.com/orkid-labs/utsa-investment-hackathon
 
 ## Rules (from the starter repo's RULES.md)
 - Long-only: weights >= 0, sum to ~1.0 (+/- 1%). No shorting stocks, no writing options.
-- **Cash (organizers, workshop answer):** cash can be held. Open conflict: `rubric.yaml` still checks that `/portfolio/holdings` weights sum to 1.0 +/- 0.01 (10 pts) and the template's `/backtest` rejects weights not summing to ~1. Before relying on cash, resolve this (ask which governs; or hold a cash-like ticker if one is in `ds.universe()`).
+- **Cash (organizers):** cash can be held, and the organizers said they will change the scoring so holding cash is not punished. Until the updated `rubric.yaml` / `check.py` lands, the current holdings check still expects weights to sum to 1.0 +/- 0.01 and the template's `/backtest` rejects weights not summing to ~1; re-pull the starter repo and re-run `check.py` before relying on cash. Cash still lowers expected return under a total-return score.
 - Only hedge: buy protective puts (OCC tickers like `O:AAPL250117P00220000`, as holdings legs).
 - Stay inside `ds.universe()`.
 - **Holdout (organizers):** our data stops at the holdout date, and the model is tested on the 30 days AFTER it. So the frozen book is built as of the last data date. Check `max(ds.trading_days())`: if the dataset already ends at the holdout start, `ds.holdout_cutoff()` (last trading day minus 30 days) would drop 30 days of usable history; confirm before pinning the cutoff. Training window: 2017-01-01 to the pinned cutoff.
