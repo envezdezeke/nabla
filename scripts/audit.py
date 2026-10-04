@@ -32,11 +32,13 @@ from nabla import book, data, factors, model, pipeline, sim  # noqa: E402
 
 
 def random_strategy(groups, cfg, seed):
-    rng = np.random.default_rng(seed)
-
+    """Each ticker gets one fixed random score per seed, so the random book is as
+    persistent as a real factor book (a fresh draw every week would churn the
+    whole book and mostly measure costs)."""
     def fn(ft, held, _sig):
         pool = ft[factors.liquid(ft, **cfg["liquidity"])]
-        score = pd.Series(rng.random(len(pool)), index=pool.index)  # random ranking
+        score = pd.Series([np.random.default_rng([seed, *map(ord, t)]).random() for t in pool.index],
+                          index=pool.index)
         b = cfg["book"]
         picks = book.select(score, groups, held, n=b["n"], exit_rank=b["exit_rank"], sector_cap=b["sector_cap"])
         return book.weights(picks, pool["days_to_next_report"], max_name=b["max_name"],
