@@ -38,7 +38,8 @@ def decide(ft: pd.DataFrame, groups: pd.Series, held: list[str], cfg: dict,
     invested = 1.0 - float(rg["stress_cash"]) if rg.get("stress_cash") and flags.get("stress") else 1.0
     w = weigh(picks)
     if b.get("beta_max"):
-        w = book.beta_limit(w, score, groups, pool["beta"], weigh, float(b["beta_max"]), invested,
+        beta = pool["beta"] if "beta" in pool else pd.Series(float("nan"), index=pool.index)
+        w = book.beta_limit(w, score, groups, beta, weigh, float(b["beta_max"]), invested,
                             pool_size=b["exit_rank"], sector_cap=b["sector_cap"], n=b["n"])
     w = w * invested  # the rest is CASHHOLDING
     detail = pool.assign(score=score, group=groups.reindex(pool.index)).sort_values("score", ascending=False)
