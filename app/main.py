@@ -36,8 +36,43 @@ from nabla import decide as replay  # noqa: E402
 BOOK = ROOT / "config" / "book.json"
 STALE_CHECK_SECONDS = 600
 
-ds = Dataset()
+class DataUnavailable(RuntimeError):
+    """The data server refused or could not be reached (e.g. a revoked token)."""
+
+
+class _LazyDataset:
+    """Connects to the data server on first use instead of at import, and retries
+    at most once a minute after a failure. Without data the API still starts:
+    /health, /portfolio/holdings, /model and /decide serve the frozen book
+    (config/book.json); data endpoints answer 503."""
+    RETRY_SECONDS = 60
+
+    def __init__(self):
+        self._ds, self._failed_at, self.error = None, 0.0, None
+
+    def connect(self):
+        if self._ds is None:
+            if self.error and time.time() - self._failed_at < self.RETRY_SECONDS:
+                raise DataUnavailable(self.error)
+            try:
+                self._ds, self.error = Dataset(), None
+            except Exception as e:  # noqa: BLE001 - 401, DNS, timeout: all mean no data
+                self.error, self._failed_at = f"{type(e).__name__}: {e}", time.time()
+                raise DataUnavailable(self.error) from e
+        return self._ds
+
+    def __getattr__(self, name):
+        return getattr(self.connect(), name)
+
+
+ds = _LazyDataset()
 app = FastAPI(title="nabla portfolio api", version="1.0.0")
+
+
+@app.exception_handler(DataUnavailable)
+def _no_data(_request, exc):
+    from fastapi.responses import JSONResponse
+    return JSONResponse(status_code=503, content={"detail": f"data server unavailable: {exc}"})
 _lock = threading.Lock()
 _state = {"checked": 0.0, "refreshing": False, "last_error": None}
 _price_lock = threading.Lock()
@@ -58,7 +93,7 @@ def _warm() -> None:
     """Fill the cache at startup: the screen window first, then 2020 (the
     rubric's /backtest request)."""
     try:
-        last = data.last_trading_day(ds)
+        last = data.last_trading_day(ds.connect())
         _screen_table(last)
         _prices(date(2020, 1, 1), date(2020, 12, 31))
     except Exception:  # noqa: BLE001 - warming is best effort
@@ -97,7 +132,7 @@ def _maybe_refresh(book: dict | None) -> None:
             return
         _state["checked"] = now
         try:
-            newest = str(data.last_trading_day(Dataset() if ds.base else ds))
+            newest = str(data.last_trading_day(Dataset() if ds.connect().base else ds.connect()))
         except Exception:  # noqa: BLE001
             return
         stale_model = book is not None and book.get("model") != model.load_config()["version"]
@@ -123,7 +158,12 @@ def _fallback_book(n: int = 15) -> dict:
 @app.get("/health")
 def health() -> dict:
     book = _read_book()
-    return {"ok": True, "model": model.load_config()["version"],
+    try:
+        ds.connect()
+        data_status = "ok"
+    except DataUnavailable as e:
+        data_status = f"unavailable ({e}); serving the frozen book"
+    return {"ok": True, "model": model.load_config()["version"], "data": data_status,
             "book_as_of": book.get("as_of") if book else None,
             "refreshing": _state["refreshing"], "warm": _state.get("warm"), "last_refresh_error": _state["last_error"]}
 
@@ -165,12 +205,22 @@ def decide_post(req: DecideRequest) -> dict:
     A week's book is computed once and cached. If computing it would overrun the
     time budget, the answer is the frozen book (config/book.json), marked
     "fallback", while the computation finishes in the background for later calls."""
-    fut = _pool.submit(replay.decide, req.information_cutoff, ds, req.team_id)
+    try:
+        live_ds = ds.connect()
+    except DataUnavailable:
+        book = _read_book()
+        if book is None:
+            raise
+        try:
+            return replay.offline_record(req.information_cutoff, book, req.team_id)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+    fut = _pool.submit(replay.decide, req.information_cutoff, live_ds, req.team_id)
     try:
         return fut.result(timeout=DECIDE_BUDGET_SECONDS)
     except FuturesTimeout:
         book = _read_book() or _fallback_book()
-        return replay.decide(req.information_cutoff, ds=ds, team_id=req.team_id, fallback_book=book)
+        return replay.decide(req.information_cutoff, ds=live_ds, team_id=req.team_id, fallback_book=book)
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -178,9 +228,10 @@ def decide_post(req: DecideRequest) -> dict:
 def _warm() -> None:
     """Compute the latest weekly decisions at startup so the first judge call is fast."""
     try:
-        days = data.trading_days(ds)
+        live_ds = ds.connect()
+        days = data.trading_days(live_ds)
         for d in days[-6:]:
-            replay.decide(d, ds=ds)
+            replay.decide(d, ds=live_ds)
         _state["warm"] = f"ok through {days[-1]}"
     except Exception as e:  # noqa: BLE001 - warming is best-effort
         _state["warm"] = f"failed: {type(e).__name__}: {e}"

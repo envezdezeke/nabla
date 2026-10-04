@@ -114,6 +114,35 @@ def _dataset(root: str):
     return _DS[root]
 
 
+def offline_record(information_cutoff, book: dict, team_id: str | None = None) -> dict:
+    """Decision record from the frozen book when the data server is unreachable.
+    Weekends are skipped but exchange holidays are unknown, and the holdings are
+    the frozen book whatever the cutoff; the record says so in "fallback"."""
+    cfg = model.load_config()
+    cutoff = _parse_cutoff(information_cutoff)
+    today = cutoff.date()
+    while today.weekday() >= 5:
+        today -= timedelta(days=1)
+    decision_time = cutoff + timedelta(minutes=15)
+    execute = execution_day(decision_time, set())
+    model_id = f"nabla-{cfg['version']}"
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "team_id": team_id or os.environ.get("NABLA_TEAM_ID", "nabla"),
+        "model_id": model_id,
+        "decision_id": f"{model_id}-{cutoff.date().isoformat()}",
+        "information_cutoff": cutoff.isoformat(),
+        "decision_time": decision_time.isoformat(),
+        "execution_time": datetime.combine(execute, time(9, 30), ET).isoformat(),
+        "action": "rebalance" if is_rebalance_day(today, set()) and cutoff.date() == today else "hold",
+        "target_holdings": book["holdings"],
+        "data_through": str(book.get("as_of")),
+        "decided_on": str(book.get("as_of")),
+        "regime": book.get("regime"),
+        "fallback": f"data server unavailable; frozen book as of {book.get('as_of')}",
+    }
+
+
 def decide(information_cutoff, ds=None, team_id: str | None = None,
            fallback_book: dict | None = None) -> dict:
     """One decision record for the given information cutoff.
