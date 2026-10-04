@@ -8,9 +8,33 @@
     "value": 1.0,
     "vol_premium": 1.0
   },
-  "liquidity": {"min_adv": 50000000, "min_price": 5.0, "amihud_drop_pct": 0.9},
-  "book": {"n": 15, "exit_rank": 30, "max_name": 0.10, "sector_cap": 0.30,
-           "earnings_cap": 0.06, "earnings_days": 30},
-  "backtest": {"start": "2018-01-01", "holdback_months": 6, "cost_model": "plan",
-               "book_value": 1000000}
+  "liquidity": {
+    "min_adv": 50000000,
+    "min_price": 5.0,
+    "amihud_drop_pct": 0.9
+  },
+  "book": {
+    "n": 15,
+    "exit_rank": 30,
+    "max_name": 0.1,
+    "sector_cap": 0.3,
+    "earnings_cap": 0.06,
+    "earnings_days": 30
+  },
+  "backtest": {
+    "start": "2018-01-01",
+    "holdback_months": 6,
+    "cost_model": "plan",
+    "book_value": 1000000
+  },
+  "costs": {
+    "half_spread_bps": [
+      5.0,
+      10.0,
+      20.0
+    ],
+    "impact_k": 1.0,
+    "max_adv_pct": 0.01,
+    "note": "half-spread by 20-day dollar-volume tercile among liquid names; impact = k * amihud * |dw| * book / 1e6 per unit traded"
+  }
 }

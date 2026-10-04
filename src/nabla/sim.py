@@ -12,7 +12,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 
-from . import factors
+from . import costs, factors
 
 YEAR = 252
 
@@ -24,30 +24,23 @@ def rebalance_days(dates: pd.DatetimeIndex) -> list[int]:
 
 
 def trade_cost(dw: pd.Series, ft: pd.DataFrame, book_value: float, model: str,
-               k: float = 1.0, flat_bps: float = 10.0) -> float:
+               flat_bps: float = 10.0, liquidity: dict | None = None, cost_cfg: dict | None = None) -> float:
     """Cost as a fraction of the book for weight changes dw.
 
-    plan: half-spread (5/10/20 bps by ADV tercile) + k * Amihud * dollars traded.
+    plan: costs.trade_cost (half-spread 5/10/20 bps by liquidity tier + Amihud impact).
     flat: the judges' schedule, flat_bps on every dollar traded.
     """
-    dw = dw[dw.abs() > 0]
-    if dw.empty:
-        return 0.0
     if model == "flat":
+        dw = dw[dw.abs() > 0]
         return float(dw.abs().sum() * flat_bps / 1e4)
-    adv = ft["adv20"]
-    tier = pd.Series(20.0, index=adv.index)
-    tier[adv >= adv.quantile(1 / 3)] = 10.0
-    tier[adv >= adv.quantile(2 / 3)] = 5.0
-    s = tier.reindex(dw.index).fillna(20.0)
-    a = ft["amihud"].reindex(dw.index).fillna(ft["amihud"].median())
-    return float((dw.abs() * (0.5 * s / 1e4 + k * a * dw.abs() * book_value / 1e6)).sum())
+    return costs.trade_cost(dw, ft, book_value, liquidity, cost_cfg)
 
 
 def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         strategy: Callable, start, end, cost_model: str = "plan",
         book_value: float = 1e6, fund: pd.DataFrame | None = None,
-        splits: pd.DataFrame | None = None) -> dict:
+        splits: pd.DataFrame | None = None, liquidity: dict | None = None,
+        cost_cfg: dict | None = None) -> dict:
     """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1)."""
     rets = close.pct_change(fill_method=None).fillna(0.0)
     dates = close.index
@@ -72,7 +65,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
             target = strategy(ft, list(w.index[w > 0]), sig)
             dw = target.reindex(target.index.union(w.index), fill_value=0.0) - \
                 w.reindex(target.index.union(w.index), fill_value=0.0)
-            cost = trade_cost(dw, ft, book_value * value, cost_model)
+            cost = trade_cost(dw, ft, book_value * value, cost_model, liquidity=liquidity, cost_cfg=cost_cfg)
             turn = float(dw.abs().sum())
             w = target[target > 0]
             books.append({"date": dates[i], "signal_date": sig, "names": len(w),
@@ -82,7 +75,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         out.append((dates[i], port, r, turn, cost))
     if len(w):  # liquidate at the end, as the judges' engine does
         last = out[-1]
-        exit_cost = trade_cost(-w, ft, book_value * value, cost_model)
+        exit_cost = trade_cost(-w, ft, book_value * value, cost_model, liquidity=liquidity, cost_cfg=cost_cfg)
         out[-1] = (last[0], last[1] - exit_cost, last[2], last[3] + float(w.sum()), last[4] + exit_cost)
     daily = pd.DataFrame(out, columns=["date", "ret", "gross", "turnover", "cost"]).set_index("date")
     return {"daily": daily, "books": pd.DataFrame(books), "final_weights": w}

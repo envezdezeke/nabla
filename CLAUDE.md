@@ -63,7 +63,7 @@ Cash is an explicit weight so the record sums to 1 (Stress: stocks 0.75 + cash 0
 - Optional trailing stop: exit if 15% below high since entry and ranked worse than 20.
 
 ## Costs
-Half-spread 5 / 10 / 20 bps by liquidity tercile plus impact k * Amihud * dollars traded (k = 1; Amihud is x10^6 scaled). Rerun at 2x costs.
+In `src/nabla/costs.py`, settings in `config/model.json` `costs`. Half-spread 5 / 10 / 20 bps by 20-day dollar-volume tercile among liquid names (names outside the filter pay 20); impact = k * Amihud * |dw| * book / 1e6 per unit traded, so impact cost grows with trade size squared (k = 1; Amihud is x10^6 scaled; missing Amihud counts as the worst seen). `adv_cap` gives the 1%-of-ADV weight limit. Liquidity filter in `factors.liquid` (with `liquidity_report` for counts per step). Rerun at 2x costs.
 
 ## Validation
 - Backtest = weekly replay of `decide()` from 2018 to the cutoff, next-open fills, costs charged. Walk-forward only; labels lag 21 trading days; last six months untouched until the go/no-go.

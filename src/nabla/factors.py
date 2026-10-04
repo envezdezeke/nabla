@@ -67,7 +67,25 @@ def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame
 
 def liquid(ft: pd.DataFrame, min_adv: float = 50e6, min_price: float = 5.0,
            amihud_drop_pct: float = 0.90) -> pd.Series:
-    """Liquidity filter: ADV20 > $50M, price > $5, drop the most illiquid Amihud decile."""
-    ok = (ft["adv20"] > min_adv) & (ft["price"] > min_price) & ft["momentum"].notna()
+    """Liquidity filter, in order:
+      1. 20-day average dollar volume of at least $50M,
+      2. price above $5,
+      3. of those, drop the least liquid 10% by Amihud illiquidity (price move per dollar traded).
+    Names also need a year of prices (momentum), and a missing Amihud value counts as illiquid."""
+    ok = (ft["adv20"] >= min_adv) & (ft["price"] > min_price) & ft["momentum"].notna() & ft["amihud"].notna()
+    if not ok.any():
+        return ok
     cut = ft.loc[ok, "amihud"].quantile(amihud_drop_pct)
-    return ok & ~(ft["amihud"] > cut)
+    return ok & (ft["amihud"] <= cut)
+
+
+def liquidity_report(ft: pd.DataFrame, min_adv: float = 50e6, min_price: float = 5.0,
+                     amihud_drop_pct: float = 0.90) -> dict:
+    """How many names each step of the filter removes (for the audit doc and sanity checks)."""
+    n = len(ft)
+    adv_ok = ft["adv20"] >= min_adv
+    px_ok = adv_ok & (ft["price"] > min_price)
+    hist_ok = px_ok & ft["momentum"].notna() & ft["amihud"].notna()
+    final = liquid(ft, min_adv, min_price, amihud_drop_pct)
+    return {"universe": n, "after_adv": int(adv_ok.sum()), "after_price": int(px_ok.sum()),
+            "after_history": int(hist_ok.sum()), "after_amihud": int(final.sum())}
