@@ -19,6 +19,12 @@ import pandas as pd
 
 FLOWS = ["eps", "sales", "gross_profit", "ebit", "net_income", "fcf", "fcf_per_share", "ebitda"]
 STOCKS = ["total_assets", "equity", "net_debt"]
+RATIOS = ["gross_margin"]  # quarterly ratios: averaged over the four quarters, not summed
+
+# The Bloomberg drop restates per-share history for splits (NVDA EPS shows no
+# jump at the 10-for-1 split in June 2024; checked with explore/04), so the
+# split guard is off by default.
+SPLIT_GUARD = False
 
 CANDIDATES = {
     "eps": ["is_eps", "eps", "basic_eps", "diluted_eps", "is_diluted_eps", "eps_basic", "eps_diluted",
@@ -33,6 +39,7 @@ CANDIDATES = {
     "total_assets": ["bs_tot_asset", "total_assets", "tot_assets"],
     "equity": ["equity", "shareholders_equity", "total_equity", "tot_common_eqy", "bs_tot_eqy", "total_shareholders_equity"],
     "net_debt": ["net_debt", "bs_net_debt"],
+    "gross_margin": ["gross_margin", "gross_margin_pct"],
 }
 
 FALLBACK_LAG = pd.Timedelta(days=60)
@@ -112,6 +119,8 @@ def ttm(f: pd.DataFrame, cutoff: pd.Timestamp) -> pd.DataFrame:
     for c in [c for c in FLOWS if c in f]:
         s = g[c].sum(min_count=4)
         out[c] = s.where(full)
+    for c in [c for c in RATIOS if c in f]:
+        out[c] = g[c].mean().where(full & (g[c].count() >= 3))
     latest = vis.groupby("ticker").tail(1).set_index("ticker")
     for c in [c for c in STOCKS if c in f]:
         out[c] = latest[c]
@@ -125,13 +134,16 @@ def _safe_div(a: pd.Series, b: pd.Series, positive_denominator: bool = True) -> 
 
 def quality(t: pd.DataFrame) -> tuple[pd.Series, str]:
     """One definition for the universe, chosen by which columns exist:
-    gross profit / assets (Novy-Marx) > ROE > blend of operating margin,
-    FCF margin and low leverage (needs 2 of 3 per stock)."""
+    gross profit / assets (Novy-Marx) > ROE > blend of gross margin, operating
+    margin, FCF margin and low leverage (needs 2 per stock). The Bloomberg drop
+    has no total assets or equity, so the blend is what runs on the real data."""
     if {"gross_profit", "total_assets"} <= set(t.columns):
         return _safe_div(t["gross_profit"], t["total_assets"]), "gross_profit_to_assets"
     if {"net_income", "equity"} <= set(t.columns):
         return _safe_div(t["net_income"], t["equity"]), "roe"
     parts = {}
+    if "gross_margin" in t.columns:
+        parts["gross_margin"] = t["gross_margin"]
     if {"ebit", "sales"} <= set(t.columns):
         parts["oper_margin"] = _safe_div(t["ebit"], t["sales"])
     if {"fcf", "sales"} <= set(t.columns):
@@ -147,10 +159,14 @@ def quality(t: pd.DataFrame) -> tuple[pd.Series, str]:
     return q, "margin_blend:" + "+".join(parts)
 
 
-def value(t: pd.DataFrame, price: pd.Series, split_in_window: pd.Series) -> tuple[pd.Series, str]:
-    """Earnings yield = TTM EPS / price (negative earnings rank low). Falls back to
-    FCF per share / price. Names with a split inside the TTM window are left
-    neutral, since quarterly per-share figures may be on the old share count."""
+def value(t: pd.DataFrame, price: pd.Series, split_in_window: pd.Series,
+          loss_to_bottom: bool = True) -> tuple[pd.Series, str]:
+    """Earnings yield = TTM EPS / price. Falls back to FCF per share / price.
+
+    Money-losing companies are all set to the bottom of the range (the lowest
+    earnings yield seen that date), so they rank last together instead of being
+    sorted by the size of their loss, which says little about value.
+    `split_in_window` names are left neutral (only used when SPLIT_GUARD is on)."""
     p = price.reindex(t.index)
     if "eps" in t:
         v, name = t["eps"] / p.where(p > 0), "earnings_yield"
@@ -158,8 +174,11 @@ def value(t: pd.DataFrame, price: pd.Series, split_in_window: pd.Series) -> tupl
         v, name = t["fcf_per_share"] / p.where(p > 0), "fcf_yield"
     else:
         return pd.Series(np.nan, index=t.index), "unavailable"
+    v = v.replace([np.inf, -np.inf], np.nan)
+    if loss_to_bottom and (v < 0).any():
+        v = v.where(~(v < 0), v.min())
     v = v.where(~split_in_window.reindex(t.index).fillna(False).astype(bool))
-    return v.replace([np.inf, -np.inf], np.nan), name
+    return v, name
 
 
 def splits_in_window(splits: pd.DataFrame, t: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
@@ -183,5 +202,6 @@ def quality_value(f: pd.DataFrame, price: pd.Series, cutoff: pd.Timestamp,
     """Quality and value for every ticker in `price`, as of `cutoff` (a timestamp)."""
     t = ttm(f, cutoff).reindex(price.index)
     q, qname = quality(t)
-    v, vname = value(t, price, splits_in_window(splits, t, cutoff))
+    guard = splits_in_window(splits, t, cutoff) if SPLIT_GUARD else pd.Series(False, index=t.index)
+    v, vname = value(t, price, guard)
     return pd.DataFrame({"quality": q, "value": v}), {"quality_def": qname, "value_def": vname}

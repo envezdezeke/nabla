@@ -73,7 +73,8 @@ def test_value_is_earnings_yield_and_negative_earnings_rank_low():
     assert np.isclose(qv.loc["AAA", "value"], 0.1) and qv.loc["BBB", "value"] < 0
 
 
-def test_split_inside_the_ttm_window_leaves_value_neutral():
+def test_split_inside_the_ttm_window_leaves_value_neutral(monkeypatch):
+    monkeypatch.setattr(F, "SPLIT_GUARD", True)
     f, _ = F.prepare(_fund(EPS), _cal())
     price = pd.Series({"AAA": 40.0, "BBB": 40.0})
     splits = pd.DataFrame({"ticker": ["AAA"], "ex_date": [pd.Timestamp("2024-01-15")], "value": [4.0]})
@@ -113,3 +114,26 @@ def test_calendar_period_end_match_beats_fallback():
                         "period_end": pd.to_datetime(["2024-03-31", "2024-06-30"])})
     k = fm.knowable_times(fund, cal)
     assert list(k) == list(pd.to_datetime(["2024-04-26", "2024-07-31"]))  # day after filing, not +60d
+
+
+def test_split_guard_is_off_by_default_because_eps_is_restated():
+    f, _ = F.prepare(_fund(EPS), _cal())
+    splits = pd.DataFrame({"ticker": ["AAA"], "ex_date": [pd.Timestamp("2024-01-15")], "value": [4.0]})
+    qv, _ = F.quality_value(f, pd.Series({"AAA": 40.0, "BBB": 40.0}), pd.Timestamp("2024-12-31"), splits)
+    assert np.isclose(qv.loc["AAA", "value"], 0.1)
+
+
+def test_money_losers_sit_together_at_the_bottom():
+    eps = {"eps": {"AAA": [1.0] * 4, "BBB": [-0.1] * 4, "CCC": [-5.0] * 4, "DDD": [0.2] * 4}}
+    f, _ = F.prepare(_fund(eps, tickers=("AAA", "BBB", "CCC", "DDD")), _cal(("AAA", "BBB", "CCC", "DDD")))
+    qv, _ = F.quality_value(f, pd.Series(40.0, index=["AAA", "BBB", "CCC", "DDD"]), pd.Timestamp("2024-12-31"))
+    v = qv["value"]
+    assert v["BBB"] == v["CCC"] < v["DDD"] < v["AAA"]
+
+
+def test_gross_margin_joins_the_quality_blend():
+    cols = {"gross_margin": {"AAA": [60.0] * 4, "BBB": [20.0] * 4},
+            "ebit": {"AAA": [3] * 4, "BBB": [1] * 4}, "sales": {"AAA": [10] * 4, "BBB": [10] * 4}}
+    f, _ = F.prepare(_fund(cols), _cal())
+    qv, notes = F.quality_value(f, pd.Series({"AAA": 1.0, "BBB": 1.0}), pd.Timestamp("2024-12-31"))
+    assert "gross_margin" in notes["quality_def"] and qv.loc["AAA", "quality"] > qv.loc["BBB", "quality"]

@@ -58,7 +58,8 @@ print("\n   top 10 value:\n", qv["value"].nlargest(10).round(4).to_string())
 from nabla import combine  # noqa: E402
 
 PAST = pd.Timestamp("2023-06-30")
-KNOWN = ["AAPL", "MSFT", "JPM", "BAC", "XOM", "CVX"]
+# JPM, BAC, XOM and CVX are not in ds.universe(); use household names that are
+KNOWN = ["AAPL", "MSFT", "NVDA", "KO", "PG", "PFE", "INTC", "TSLA", "UBER"]
 px = data.load_prices(ds, PAST - pd.Timedelta(days=10), PAST, list(f["ticker"].unique()))
 price = data.to_wide(px, "close").iloc[-1]
 qv, notes = F.quality_value(f, price, PAST + pd.Timedelta(hours=16), data.load_splits(ds))
@@ -72,7 +73,7 @@ show = pd.DataFrame({
     "quality_pct": qv["quality"].rank(pct=True), "value_pct": qv["value"].rank(pct=True),
 })
 print(f"\n7) known names on {PAST.date()} ({notes}):")
-print("   expect AAPL/MSFT high quality; banks and energy cheap (high value pct)")
+print("   expect AAPL/MSFT/KO high quality; PFE/INTC cheap; TSLA/UBER expensive")
 print(show.reindex(KNOWN).round(3).to_string())
 losers = show[show["ttm_eps"] < 0]
 print(f"\n   money-losing names: {len(losers)} of {show['ttm_eps'].notna().sum()} with TTM EPS")
