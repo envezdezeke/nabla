@@ -351,3 +351,17 @@ Agreement is the adjusted Rand index (1 = same grouping, 0 = chance): the consen
 | Beta, alpha vs S&P (t) | 0.98, +2.5% (0.60) | | |
 
 **What this changes.** The 17.6% headline depended on one lucky grouping and is withdrawn; 14.2% is the figure that follows the stated point-in-time method, and it matches the earlier yearly-refit sensitivity check. v1.3 still beats the equal-weight universe and the S&P 500 on return with S&P-level Sharpe and a smaller drawdown than equal weight, but it beat only 3 of 5 random 15-name books with the same rules and its alpha is not statistically distinguishable from zero. We do not retune factors to recover the old number; that would be fitting to this sample.
+
+### Result: hidden Markov stress signal rejected
+
+Fits looked sensible from 2019 on (stress volatility 21-37% vs calm 7-10%, regimes lasting 4-18 weeks); the 2018 fit (322 days, stress 11% vs calm 6%) was weak, as flagged in advance. Episode timing: the HMM flagged 2018 Q4 a week earlier (Oct 12 vs Oct 19), 2022 three weeks earlier (Jan 21 vs Feb 11), and caught August 2024, which the rule missed; 2020 and April 2025 on the same week.
+
+`scripts/audit.py --only markov`, 25% cash dial in every row:
+
+| Method | Annual return | Sharpe | Max drawdown | Bad month (5th pct) | Weeks flagged | Switches / year |
+| --- | --- | --- | --- | --- | --- | --- |
+| rule (shipped) | 14.2% | 0.70 | 33.3% | -8.2% | 18% | 1.7 |
+| hmm_trend (candidate) | 11.0% | 0.60 | 33.4% | -7.8% | 41% | 3.7 |
+| hmm | 11.8% | 0.64 | 33.1% | -7.6% | 49% | 6.1 |
+
+Against the pre-registered rule, `hmm_trend` passes 2 (bad month), 4 (switches) and 5 (timing) but fails 3 (return 3.2 points lower, limit 1) and 1 (drawdown 0.1 point worse). **Not shipped; `regime.method` stays `rule`.** The HMM is faster, but it holds 25% cash in about 40% of weeks, and over 2018-2026 the cash cost more in missed gains than it saved in sell-offs. Thresholds were not retuned after seeing the result. On 2026-09-18 P(stress) was 0.01, so the choice would not have changed the book entering the judged window. A statistical jump model (penalized switching) is the documented next candidate if revisited.
