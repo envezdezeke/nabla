@@ -20,6 +20,7 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 
+import pandas as pd
 import polars as pl
 from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -348,6 +349,20 @@ class BacktestRequest(BaseModel):
     cost_bps: float | None = None
 
 
+def _split_events(start: date, end: date, tickers: list[str]) -> list[tuple[str, date, float]]:
+    """(ticker, ex_date, factor) splits in the window, from corporate_actions; empty if offline."""
+    try:
+        sp = data.load_splits(ds.connect())
+    except Exception:  # noqa: BLE001 - offline or table missing: no adjustment possible
+        return []
+    if sp is None or sp.empty:
+        return []
+    sp = sp[sp["ticker"].isin(tickers)].copy()
+    sp["ex_date"] = pd.to_datetime(sp["ex_date"]).dt.date
+    sp = sp[(sp["ex_date"] >= start) & (sp["ex_date"] <= end)]
+    return [(r.ticker, r.ex_date, float(r.value)) for r in sp.itertuples(index=False)]
+
+
 @app.post("/backtest")
 def backtest(req: BacktestRequest) -> dict:
     """Same engine as the judges' recompute (statevector.run_backtest), net of fees."""
@@ -369,8 +384,14 @@ def backtest(req: BacktestRequest) -> dict:
     wide_pd = px.pivot_table(index="date", columns="ticker", values="close", aggfunc="last").sort_index()
     if len(wide_pd) < 3:
         raise HTTPException(400, "insufficient data in range")
-    rets = pl.from_pandas((wide_pd / wide_pd.shift(1) - 1.0).fillna(0.0).reset_index(drop=True))
+    raw = (wide_pd / wide_pd.shift(1) - 1.0).fillna(0.0)
     dates = [d.date() for d in wide_pd.index]
+    # close is raw: an in-window split ex-date prints a phantom -50/-75/-90% day. Correct it the
+    # way the judges' reference does (statevector.apply_split_factors): (1 + r) * factor - 1
+    for t, day, factor in _split_events(req.start, req.end, req.tickers):
+        if t in raw.columns and pd.Timestamp(day) in raw.index:
+            raw.loc[pd.Timestamp(day), t] = (1.0 + raw.loc[pd.Timestamp(day), t]) * factor - 1.0
+    rets = pl.from_pandas(raw.reset_index(drop=True))
     metrics = run_backtest(rets, dates, req.tickers, weights,
                            rebalance=req.rebalance, cost_bps=req.cost_bps)
     if not metrics:
