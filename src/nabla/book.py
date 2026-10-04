@@ -10,12 +10,13 @@ def select(score: pd.Series, groups: pd.Series, held: list[str], n: int = 15,
            exit_rank: int = 30, sector_cap: float = 0.30) -> list[str]:
     """Entry band: a new name enters only from the top n. Exit band: a held name
     stays while it ranks within exit_rank. Sector cap enforced as a name count.
-    Unclassified names ("all"/"other") are not capped, so a failed sector lookup
-    cannot shrink the book to a handful of names."""
+    A failed sector lookup ("all") is not capped, so it cannot shrink the book to
+    a handful of names. "other" (too little history to cluster) is capped like any
+    group, so unclustered names cannot pile up in the book."""
     ranked = score.dropna().sort_values(ascending=False)
     rank = pd.Series(range(1, len(ranked) + 1), index=ranked.index)
     max_per_group = max(1, int(sector_cap * n + 1e-9))
-    uncapped = {"all", "other"}
+    uncapped = {"all"}
     keep = [t for t in held if rank.get(t, exit_rank + 1) <= exit_rank]
     keep = sorted(keep, key=lambda t: rank[t])
     picks, count = [], {}

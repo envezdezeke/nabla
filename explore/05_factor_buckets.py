@@ -27,6 +27,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from statevector import Dataset  # noqa: E402
 
 from nabla import combine, data, diagnostics as D, factors, model, pipeline  # noqa: E402
+from nabla import clusters  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--start", default="2018-01-01")
@@ -63,11 +64,11 @@ for d in test_dates:
     i = close.index.get_loc(d) + 1
     ft = factors.factor_table(close.iloc[:i].iloc[-254:], inp.volume.iloc[:i].iloc[-254:],
                               sv_by.get(d, pd.DataFrame(columns=["ticker"])), inp.fund, inp.splits)
-    zs = D.factor_z(ft, inp.groups, cfg["liquidity"], names)
+    zs = D.factor_z(ft, clusters.at(inp.groups, d), cfg["liquidity"], names)
     for f in names:
         z[f][d] = zs[f]
     pool = ft[factors.liquid(ft, **cfg["liquidity"])]
-    z["composite"][d] = combine.composite(pool, inp.groups, cfg["factor_weights"])
+    z["composite"][d] = combine.composite(pool, clusters.at(inp.groups, d), cfg["factor_weights"])
 
 report = {}
 for f in names + ["composite"]:

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import book, data, factors, model, pipeline, sim
+from . import book, clusters, data, factors, model, pipeline, sim
 
 
 def build_book(ds, cfg: dict, replay_weeks: int = 8, asof=None) -> dict:
@@ -36,7 +36,7 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8, asof=None) -> dict:
                                   sv_by.get(d, pd.DataFrame(columns=["ticker"])),
                                   inp.fund, inp.splits)
         flags = regime.flags_at(wf, d)
-        w, detail = model.decide(ft, inp.groups, held, cfg, flags)
+        w, detail = model.decide(ft, clusters.at(inp.groups, d), held, cfg, flags)
         w = book.no_trade(prev, w, cfg["book"].get("no_trade_band") or 0.0)
         prev, held = w, list(w.index)
 

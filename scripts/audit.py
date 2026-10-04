@@ -36,12 +36,15 @@ def random_strategy(groups, cfg, seed):
     """Each ticker gets one fixed random score per seed, so the random book is as
     persistent as a real factor book (a fresh draw every week would churn the
     whole book and mostly measure costs)."""
-    def fn(ft, held, _sig):
+    from nabla import clusters
+
+    def fn(ft, held, sig):
+        g = clusters.at(groups, sig)
         pool = ft[factors.liquid(ft, **cfg["liquidity"])]
         score = pd.Series([np.random.default_rng([seed, *map(ord, t)]).random() for t in pool.index],
                           index=pool.index)
         b = cfg["book"]
-        picks = book.select(score, groups, held, n=b["n"], exit_rank=b["exit_rank"], sector_cap=b["sector_cap"])
+        picks = book.select(score, g, held, n=b["n"], exit_rank=b["exit_rank"], sector_cap=b["sector_cap"])
         return book.weights(picks, pool["days_to_next_report"], max_name=b["max_name"],
                             earnings_cap=b["earnings_cap"], earnings_days=b["earnings_days"])
     return fn

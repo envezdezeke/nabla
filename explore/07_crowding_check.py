@@ -30,6 +30,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from statevector import Dataset  # noqa: E402
 
 from nabla import combine, data, factors, model, pipeline, sim  # noqa: E402
+from nabla import clusters  # noqa: E402
 
 NAIVE_N = 20
 MARGINAL_RANK = 11
@@ -77,7 +78,7 @@ for target in dates:
     held: list[str] = []
     for d in sig_dates:
         ft = table_at(d, sv_by)
-        w, detail = model.decide(ft, inp.groups, held, cfg)
+        w, detail = model.decide(ft, clusters.at(inp.groups, d), held, cfg)
         held = list(w.index)
 
     r12 = naive_top(target, ft)
@@ -119,7 +120,7 @@ if args.history:
     for d in me:
         ft = table_at(d, sv_by)
         pool = ft[factors.liquid(ft, **cfg["liquidity"])]
-        score = combine.composite(pool, inp.groups, cfg["factor_weights"]).sort_values(ascending=False)
+        score = combine.composite(pool, clusters.at(inp.groups, d), cfg["factor_weights"]).sort_values(ascending=False)
         ours = set(score.index[:cfg["book"]["n"]])
         rows.append({"date": d.date(), "overlap": len(ours & set(naive_top(d, ft).index[:NAIVE_N]))})
     h = pd.DataFrame(rows).set_index("date")

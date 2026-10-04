@@ -26,6 +26,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from statevector import Dataset  # noqa: E402
 
 from nabla import data, factors, model, pipeline, regime, sim  # noqa: E402
+from nabla import clusters  # noqa: E402
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--dates", nargs="+", default=["2019-06-28", "2020-03-27", "2022-06-24", "latest"])
@@ -63,12 +64,12 @@ for target in dates:
         i = idx.get_loc(d) + 1
         ft = factors.factor_table(inp.close.iloc[:i].iloc[-sim.YEAR - 2:], inp.volume.iloc[:i].iloc[-sim.YEAR - 2:],
                                   sv_by.get(d, pd.DataFrame(columns=["ticker"])), inp.fund, inp.splits)
-        w, detail = model.decide(ft, inp.groups, held, cfg)
+        w, detail = model.decide(ft, clusters.at(inp.groups, d), held, cfg)
         held = list(w.index)
 
     book = pd.DataFrame({
         "name": names.reindex(w.index).str.slice(0, 28),
-        "cluster": inp.groups.reindex(w.index),
+        "cluster": clusters.at(inp.groups, d).reindex(w.index),
         "weight": w.round(4),
         "price": ft["price"].reindex(w.index).round(2),
         "adv20_$M": (ft["adv20"].reindex(w.index) / 1e6).round(0),

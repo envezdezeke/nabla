@@ -21,6 +21,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from statevector import Dataset  # noqa: E402
 
 from nabla import data, model, pipeline, regime, sim  # noqa: E402
+from nabla import clusters  # noqa: E402
 
 OUT = ROOT / "docs" / "img"
 OUT.mkdir(parents=True, exist_ok=True)
@@ -110,7 +111,7 @@ rows = []
 for d, w in books["weights"].items():
     s = pd.Series(w, dtype=float)
     s = s[s.index != "CASHHOLDING"]
-    rows.append(s.groupby(inp.groups.reindex(s.index).fillna("other")).sum().rename(d))
+    rows.append(s.groupby(clusters.at(inp.groups, d).reindex(s.index).fillna("other")).sum().rename(d))
 expo = pd.DataFrame(rows).fillna(0.0).sort_index()
 mx = expo.drop(columns=["other"], errors="ignore").max(axis=1)
 oth = expo["other"] if "other" in expo else pd.Series(0.0, index=expo.index)

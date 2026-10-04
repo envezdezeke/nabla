@@ -198,3 +198,40 @@ def test_api_decide_fallback_when_over_budget(root, monkeypatch):
     r = TestClient(m.app).post("/decide", json={"information_cutoff": "2024-03-01"}).json()
     assert abs(sum(h["weight"] for h in r["target_holdings"]) - 1) < 0.01
     assert "decision_id" in r
+
+
+def _planted(n_days=800, G=6, per=30, seed=0):
+    rng = np.random.default_rng(seed)
+    idx = pd.bdate_range("2019-01-01", periods=n_days)
+    mkt, fac = rng.normal(0, 0.01, n_days), rng.normal(0, 0.012, (n_days, G))
+    cols = [f"G{g}_{i}" for g in range(G) for i in range(per)]
+    X = np.concatenate([mkt[:, None] + fac[:, [g]] + rng.normal(0, 0.012, (n_days, per)) for g in range(G)], 1)
+    return pd.DataFrame(100 * np.cumprod(1 + X, 0), index=idx, columns=cols)
+
+
+def test_consensus_clusters_recover_groups_and_place_new_listings():
+    from nabla import clusters
+    close = _planted()
+    close.iloc[:700, :2] = np.nan  # two names with only 100 days of history
+    g = clusters.fit(close, close.index[-1] + pd.Timedelta(days=1), {"k": 6, "seeds": 5})
+    for grp in range(6):
+        assert g[[c for c in close.columns if c.startswith(f"G{grp}_")]].nunique() == 1
+    assert (g != "other").all()
+
+
+def test_consensus_clusters_are_point_in_time():
+    from nabla import clusters
+    close = _planted()
+    when = close.index[600]
+    a = clusters.fit(close, when, {"k": 6, "seeds": 5})
+    later = close.copy()
+    later.loc[later.index >= when] *= np.random.default_rng(3).uniform(0.5, 1.5, later.loc[later.index >= when].shape)
+    b = clusters.fit(later, when, {"k": 6, "seeds": 5})
+    assert a.equals(b)
+    assert clusters.adjusted_rand(a, b) == 1.0
+
+
+def test_clusters_at_picks_the_year():
+    from nabla import clusters
+    s = {2020: pd.Series({"A": "c0"}), 2021: pd.Series({"A": "c1"})}
+    assert clusters.at(s, "2021-06-01")["A"] == "c1" and clusters.at(s, "2020-12-31")["A"] == "c0"

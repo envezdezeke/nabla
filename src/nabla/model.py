@@ -39,11 +39,12 @@ def decide(ft: pd.DataFrame, groups: pd.Series, held: list[str], cfg: dict,
     return w, detail
 
 
-def strategy(groups: pd.Series, cfg: dict, weekly_flags: pd.DataFrame | None = None):
-    from . import regime
+def strategy(groups, cfg: dict, weekly_flags: pd.DataFrame | None = None):
+    """groups: a Series, or {fit year: Series} (the clusters in force at each signal date)."""
+    from . import clusters, regime
 
     def fn(ft, held, sig):
-        return decide(ft, groups, held, cfg, regime.flags_at(weekly_flags, sig))[0]
+        return decide(ft, clusters.at(groups, sig), held, cfg, regime.flags_at(weekly_flags, sig))[0]
     return fn
 
 
