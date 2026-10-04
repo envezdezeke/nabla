@@ -75,12 +75,12 @@ ax.grid(axis="x", color=GRID, lw=0.8)
 fig.tight_layout()
 save(fig, "deck_noise.png")
 
-# 2. which signals earn their place (drop-one-factor backtest, docs/AUDIT.md)
-hbars(["All five signals", "Without momentum", "Without quality", "Without guidance",
-       "Without value", "Without volatility premium"],
-      [13.7, 7.3, 8.5, 11.7, 11.8, 19.2],
-      [GREY, ORANGE, ORANGE, ORANGE, ORANGE, TEAL],
-      "Return per year when one signal is removed (%)", ref=13.7, ref_label="all five", name="deck_factors.png")
+# 2. which signals earn their place (drop-one-factor backtest, v1.3, docs/AUDIT.md)
+hbars(["Four signals (shipped)", "Without momentum", "Without value", "Without quality", "Without guidance",
+       "Adding the volatility premium"],
+      [14.2, 10.4, 11.3, 15.0, 15.4, 15.0],
+      [INK, ORANGE, ORANGE, GREY, GREY, GREY],
+      "Return per year with one signal removed or added (%)", ref=14.2, ref_label="shipped", name="deck_factors.png")
 
 # 3. the current book: 15 names, none above 10%
 book = json.loads((ROOT / "config" / "book.json").read_text())
@@ -133,7 +133,7 @@ ax.annotate(f"with it: worst {dd['with'].min():.0%}", (dd["with"].idxmin(), dd["
             xytext=(40, 4), textcoords="offset points", color=TEAL, fontsize=14, va="center", fontweight="bold",
             arrowprops=dict(arrowstyle="-", color=TEAL, lw=0.8))
 ax.text(dd.index[0], 1.2, "shaded: weeks holding 25% cash", color=MUTED, fontsize=12, va="bottom")
-ax.set_ylim(-38, 3)
+ax.set_ylim(min(-38, dd.min().min() * 100 - 4), 3)
 ax.set_ylabel("Drop from peak (%)")
 ax.grid(axis="y", color=GRID, lw=0.8)
 fig.tight_layout()
@@ -142,10 +142,10 @@ print("worst drawdowns:", dd.min().round(3).to_dict())
 
 # 5. tests: our picks vs late data, random picks and the S&P
 hbars(["nabla", "nabla with data 1 day late", "Random picks, same rules (median of 20)", "S&P 500"],
-      [17.6, 13.7, 10.1, 12.4], [TEAL, GREY, GREY, BLUE],
+      [14.2, 12.4, 10.1, 12.4], [TEAL, GREY, GREY, BLUE],
       "Return per year, 2018 to 2026, after costs (%)", name="deck_tests.png")
 
 # 6. robustness: every variant vs the S&P
 hbars(["As shipped", "Trade at the next open", "Double trading costs", "Data one day late"],
-      [17.6, 19.0, 16.6, 13.7], [TEAL, TEAL, TEAL, TEAL],
+      [14.2, 13.2, 13.1, 12.4], [TEAL, TEAL, TEAL, GREY],
       "Return per year, 2018 to 2026, after costs (%)", ref=12.4, ref_label="S&P 500: 12.4%", name="deck_robust.png")
