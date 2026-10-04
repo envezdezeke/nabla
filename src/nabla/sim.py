@@ -17,10 +17,19 @@ from . import costs, factors
 YEAR = 252
 
 
-def rebalance_days(dates: pd.DatetimeIndex) -> list[int]:
-    """Index of the first trading day of each ISO week (the engine's weekly rule)."""
+def rebalance_days(dates: pd.DatetimeIndex, offset: int = 0, every: int = 1) -> list[int]:
+    """Index of the first trading day of each ISO week (the engine's weekly rule).
+
+    Stress tests only: `offset` k picks the k-th trading day of the week instead
+    (the last one if the week is shorter), `every` keeps every n-th week."""
     wk = [d.isocalendar()[:2] for d in dates]
-    return [i for i in range(1, len(dates)) if wk[i] != wk[i - 1]]
+    if offset == 0 and every == 1:
+        return [i for i in range(1, len(dates)) if wk[i] != wk[i - 1]]
+    weeks: dict = {}
+    for i, w in enumerate(wk):
+        weeks.setdefault(w, []).append(i)
+    picks = [g[min(offset, len(g) - 1)] for g in weeks.values()]
+    return [i for n, i in enumerate(picks) if i >= 1 and n % every == 0]
 
 
 def trade_cost(dw: pd.Series, ft: pd.DataFrame, book_value: float, model: str,
@@ -41,7 +50,8 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         book_value: float = 1e6, fund: pd.DataFrame | None = None,
         splits: pd.DataFrame | None = None, liquidity: dict | None = None,
         cost_cfg: dict | None = None, signal_lag: int = 1,
-        no_trade_band: float | None = None, open_: pd.DataFrame | None = None) -> dict:
+        no_trade_band: float | None = None, open_: pd.DataFrame | None = None,
+        rebal_offset: int = 0, rebal_every: int = 1) -> dict:
     """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1).
 
     signal_lag: decisions on day i use data through day i - signal_lag (1 = the
@@ -61,7 +71,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
     dates = close.index
     lo, hi = dates.searchsorted(pd.Timestamp(start)), dates.searchsorted(pd.Timestamp(end), side="right")
     lo = max(lo, YEAR + signal_lag + 1)
-    rebal = set(i for i in rebalance_days(dates) if lo <= i < hi)
+    rebal = set(i for i in rebalance_days(dates, rebal_offset, rebal_every) if lo <= i < hi)
     sv_by_date = {d: g for d, g in sv.groupby("date")}
 
     w = pd.Series(dtype=float)

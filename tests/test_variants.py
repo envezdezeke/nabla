@@ -62,3 +62,15 @@ def test_deflated_sharpe_falls_with_more_trials():
     one = stats.deflated_sharpe(r, 1)["dsr"]
     many = stats.deflated_sharpe(r, 50)["dsr"]
     assert many < one
+
+
+def test_rebalance_offsets_and_frequency():
+    from nabla import sim
+    dates = pd.bdate_range("2024-01-01", "2024-03-29")
+    base = sim.rebalance_days(dates)
+    assert sim.rebalance_days(dates, 0, 1) == base
+    tue = sim.rebalance_days(dates, 1)
+    assert all(dates[i].weekday() == 1 for i in tue)
+    every2 = sim.rebalance_days(dates, 0, 2)
+    assert set(every2) <= set(base) and abs(len(every2) - len(base) / 2) <= 1
+    assert set(sim.rebalance_days(dates, 0, 4)) <= set(base) | {0}
