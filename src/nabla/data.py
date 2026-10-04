@@ -161,3 +161,37 @@ def spx_close(ds) -> pd.Series:
 def window_start(asof: date, trading_days_needed: int) -> date:
     """Calendar start that covers `trading_days_needed` trading days before asof."""
     return asof - timedelta(days=int(trading_days_needed * 1.5) + 10)
+
+
+def return_clusters(close: pd.DataFrame, k: int = 10, window: int = 252, seed: int = 0) -> pd.Series:
+    """Sector groups from co-movement, for when the data has no industry codes.
+
+    Uses only the `window` days of returns at the end of `close` (pass prices
+    ending at the decision start, so labels never use later data). Each stock is
+    described by its loadings on the top k principal components of standardized
+    returns, then k-means (k-means++ start, fixed seed) assigns k groups.
+    Stocks without a full window are "other" (uncapped).
+    """
+    r = close.pct_change(fill_method=None).iloc[-window:]
+    r = r.loc[:, r.notna().mean() > 0.9].fillna(0.0)
+    out = pd.Series("other", index=close.columns, dtype=object)
+    if r.shape[1] < k * 3:
+        return out
+    z = ((r - r.mean()) / r.std().replace(0, np.nan)).fillna(0.0).to_numpy()
+    _, _, vt = np.linalg.svd(z, full_matrices=False)
+    x = vt[:k].T  # stock loadings on the top k components
+    x = x / np.linalg.norm(x, axis=1, keepdims=True).clip(1e-12)
+    rng = np.random.default_rng(seed)
+    centers = [x[rng.integers(len(x))]]
+    for _ in range(1, k):
+        d = np.min([((x - c) ** 2).sum(1) for c in centers], axis=0)
+        centers.append(x[rng.choice(len(x), p=d / d.sum())])
+    c = np.array(centers)
+    for _ in range(100):
+        lab = ((x[:, None, :] - c[None]) ** 2).sum(2).argmin(1)
+        new = np.array([x[lab == j].mean(0) if (lab == j).any() else c[j] for j in range(k)])
+        if np.allclose(new, c):
+            break
+        c = new
+    out[r.columns] = [f"cluster{j}" for j in lab]
+    return out

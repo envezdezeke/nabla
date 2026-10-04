@@ -98,3 +98,19 @@ def test_api_shapes(root, tmp_path, monkeypatch):
     assert {"n_days", "total_return", "sharpe", "max_drawdown"} <= set(r)
     rows = c.get("/asof", params={"ticker": "AAPL", "on": "2024-03-31"}).json()
     assert all(str(x["date"])[:10] <= "2024-03-31" for x in rows)
+
+
+def test_return_clusters_recover_planted_groups():
+    rng = np.random.default_rng(0)
+    idx = pd.bdate_range("2020-01-01", periods=300)
+    f = rng.normal(0, 0.02, (300, 3))
+    cols, series = [], []
+    for g in range(3):
+        for i in range(12):
+            cols.append(f"G{g}_{i}")
+            series.append(f[:, g] + rng.normal(0, 0.005, 300))
+    close = pd.DataFrame(100 * np.cumprod(1 + np.array(series).T, axis=0), index=idx, columns=cols)
+    lab = data.return_clusters(close, k=3)
+    for g in range(3):
+        assert lab[[c for c in cols if c.startswith(f"G{g}_")]].nunique() == 1
+    assert lab.nunique() == 3

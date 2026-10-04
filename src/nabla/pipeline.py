@@ -28,6 +28,13 @@ def load(ds, start: date, end: date, universe: list[str] | None = None) -> Input
     close, volume = data.to_wide(px, "close"), data.to_wide(px, "volume")
     close, volume, notes = data.split_adjust(close, volume, data.load_splits(ds))
     groups = data.sector_groups(ds, list(close.columns))
+    if set(groups.unique()) <= {"other", "all"}:
+        # no industry codes in the data: group by co-movement over the year
+        # before `start` (point-in-time for every decision after it)
+        groups = data.return_clusters(close.loc[:pd.Timestamp(start)])
+        notes["sector_source"] = "return_clusters_pre_start"
+    else:
+        notes["sector_source"] = "sic"
     notes["sector_groups"] = groups.value_counts().to_dict()
     splits = data.load_splits(ds)
     fund, fnotes = data.load_fundamentals(ds, list(close.columns))
