@@ -48,7 +48,7 @@ def random_strategy(groups, cfg, seed):
 
 
 def capm(port: pd.Series, mkt: pd.Series) -> dict:
-    x = pd.concat([port, mkt], axis=1, keys=["p", "m"]).dropna()
+    x = pd.concat([port, mkt], axis=1, keys=["p", "m"], sort=True).dropna()
     beta = float(np.cov(x["p"], x["m"])[0, 1] / x["m"].var())
     alpha_daily = float(x["p"].mean() - beta * x["m"].mean())
     resid = x["p"] - beta * x["m"]
@@ -97,7 +97,8 @@ def main() -> None:
     if "ladder" in want:  # plan v5 ablation rungs 1-3, each must beat the one before
         for name, rg in {"rung1_v1": {"panic_momentum": False, "stress_cash": 0.0},
                          "rung2_panic": {"panic_momentum": True, "stress_cash": 0.0},
-                         "rung3_panic_cash": {"panic_momentum": True, "stress_cash": 0.25}}.items():
+                         "rung3_panic_cash": {"panic_momentum": True, "stress_cash": 0.25},
+                         "cash_only": {"panic_momentum": False, "stress_cash": 0.25}}.items():
             c = json.loads(json.dumps(cfg))
             c["regime"] = {**c.get("regime", {}), **rg}
             out[name] = run(name, model.strategy(inp.groups, c, wf), cfg=c)
