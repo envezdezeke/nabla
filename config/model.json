@@ -1,6 +1,6 @@
 {
-  "version": "v1.3",
-  "description": "Rung 1 of plan v5: equal-weight top 15 by a fixed five-factor composite, with liquidity filter, sector and earnings caps, entry/exit bands. No regime dial, no optimizer, no options. v1.1: volatility premium weight set to 0 after the drop-one-factor audit (see docs/AUDIT.md). v1.2: 25% CASHHOLDING when the SPX stress flag is on (panic rule tested and rejected). v1.2: 25% stress cash dial; panic rule rejected. v1.3: stock groups are consensus return clusters refit each January on prior data, frozen in config/clusters.json (see docs/AUDIT.md).",
+  "version": "v1.4",
+  "description": "Rung 1 of plan v5: equal-weight top 15 by a fixed five-factor composite, with liquidity filter, sector and earnings caps, entry/exit bands. No regime dial, no optimizer, no options. v1.1: volatility premium weight set to 0 after the drop-one-factor audit (see docs/AUDIT.md). v1.2: 25% CASHHOLDING when the SPX stress flag is on (panic rule tested and rejected). v1.2: 25% stress cash dial; panic rule rejected. v1.3: stock groups are consensus return clusters refit each January on prior data, frozen in config/clusters.json (see docs/AUDIT.md). v1.4: book beta capped at 1.2 (plan v5 normal band, upper edge): the highest-beta holding is swapped for the best-ranked name within the exit band with beta under 1.2; passed its pre-registered rule (see docs/AUDIT.md).",
   "factor_weights": {
     "momentum": 1.0,
     "guidance_velocity": 1.0,
@@ -20,7 +20,8 @@
     "sector_cap": 0.3,
     "earnings_cap": 0.06,
     "earnings_days": 30,
-    "no_trade_band": 0.02
+    "no_trade_band": 0.02,
+    "beta_max": 1.2
   },
   "backtest": {
     "start": "2018-01-01",

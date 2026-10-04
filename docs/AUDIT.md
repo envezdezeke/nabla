@@ -512,3 +512,23 @@ Over 12 months v1.3 beat the S&P 500 only 38% of the time. The full-period edge 
 - Replayed through past windows, the same book would have lost 25% in the 2025 tariff crash (S&P -19%) and gained 38% in the rebound (S&P +24.5%).
 
 This is the largest known risk for the judged window. The beta cap above is the response, if it passes its rule.
+
+### Result: beta cap passes; shipped as v1.4
+
+`scripts/audit.py --only betacap`, 2018 to the cutoff, plan costs:
+
+| | v1.3 | v1.4 (beta cap 1.2) |
+| --- | --- | --- |
+| Annual return | 14.9% | 15.9% |
+| Volatility | 22.6% | 21.9% |
+| Sharpe | 0.73 | 0.78 |
+| Max drawdown | 33.9% | 33.2% |
+| Beta, alpha vs S&P (t) | 0.99, +2.5% (0.61) | 0.97, +3.5% (0.89) |
+| Turnover / year | 8.2x | 8.6x |
+| 2025 tariff crash | -22.9% | -19.3% |
+| Aug 2024 yen unwind | -10.9% | -9.8% |
+| 2022 bear market | -26.4% | -25.2% |
+| Tariff rebound | +20.2% | +18.5% |
+| Final book raw beta (2026-08-21) | 1.65 | 1.12 |
+
+Return is not more than 1 point lower (it is 1 point higher), and both volatility and drawdown are lower, so it passes. **`book.beta_max` = 1.2 ships as v1.4.** It mostly binds in the recent AI/semis-led market: it gives up some rebound upside for smaller losses in the 2024-25 shocks. The higher return is a by-product, not the reason; with alpha t 0.89 it is not distinguishable from v1.3's. The book entering the judged window drops MU, RMBS and BE (betas 3.3-4.3) for lower-beta names in the top 30.
