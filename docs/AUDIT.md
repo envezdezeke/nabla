@@ -42,27 +42,6 @@ Run of `explore/04_fundamentals_check.py` on the hosted data (data through 2026-
 
 Changes made after this check: gross margin added to the quality blend, split guard turned off, money-losers set to a 0% earnings yield.
 
-## Factor direction test (five buckets)
-
-Run of `explore/05_factor_buckets.py`: at each month-end from January 2018 to February 2026 (96 dates, the six-month holdback untouched), liquid stocks are split into five buckets by each factor's cluster z-score, and the next 21 trading days' average return is recorded per bucket (returns start the day after the signal). Months do not overlap.
-
-| Factor | Bucket 1 (low) | Bucket 5 (high) | 5 minus 1, per month | t-stat | Years positive | Verdict |
-| --- | --- | --- | --- | --- | --- | --- |
-| Momentum 12-1 | 1.11% | 1.40% | +0.29% | 0.6 | 4 of 8 | Right sign overall, but only 2023 to 2025 |
-| Guidance velocity | 1.23% | 1.36% | +0.13% | 0.6 | 4 of 8 | Right sign overall, but only 2023 to 2025 |
-| Quality (margin blend) | 1.50% | 0.97% | −0.52% | −1.4 | 2 of 8 | Backwards |
-| Value (earnings yield) | 1.39% | 0.98% | −0.41% | −1.2 | 2 of 8 | Backwards |
-| Volatility premium | 1.11% | 0.92% | −0.19% | −0.9 | 3 of 8 | Backwards |
-| Composite (equal weight) | 1.23% | 1.02% | −0.21% | −0.6 | 3 of 8 | No edge over the full period |
-
-Spread by year (bucket 5 minus bucket 1, per month): momentum was negative in 2018, 2020, 2021 and 2022 and positive in 2019 and 2023 to 2025 (+2.6% in 2024); the composite was positive only in 2022 to 2024.
-
-**What it means.** Over eight years no factor separates winners from losers reliably: every t-stat is below 1.5, so none of the spreads, positive or negative, is distinguishable from noise. The strong v1 backtest (2023 to February 2026) falls in the one stretch where momentum and guidance worked. Quality and value point the wrong way in most years, consistent with low-quality, cheap-looking stocks leading the 2020 rebound and parts of 2025; we do not flip their signs, since choosing a sign after seeing the data would be fitting noise.
-
-**Known limitation found here.** 431 of about 1,250 names are unclustered ("other") because they lack a full year of returns before the 2018 cluster fit; they are z-scored together and uncapped. Refitting the clusters each year on past data only would fix this.
-
-**Decision:** all five factors stay for now. Following plan v5, we add the remaining layers first (panic momentum weight, cash rule, optimizer) and then remove what does not earn its place, using the drop-one-factor backtest on the full model rather than this single test.
-
 ## Backtest results
 
 **Status: preliminary.** These numbers come from the v1 model (rung 1: equal-weight top 15 with limits and bands, no cash rule, no optimizer) on a short, favorable window. They are not expected returns, and we do not present them as such.
@@ -133,8 +112,6 @@ What it means:
 - **Survivorship likely tilts quality and value backwards here.** The data holds only today's listed companies, so the weak, unprofitable firms in the history are the ones that survived and recovered; the ones that failed are missing. The test month has no such bias, so the backtest understates quality and value somewhat. It cannot explain the 2020 result, which was a real junk rally.
 - **The five-factor composite as written does not beat its own bottom bucket.** Shipping it unchanged would mean shipping a score that tested backwards.
 
-Recommendation to Ezekiel (decision is his, not made in code yet):
-1. Composite = momentum + guidance velocity, equal weights (the two factors with the right sign). Keep the panic rule on momentum.
-2. Drop value and the volatility premium from the score.
-3. Quality: drop from the score, or keep at half weight as a tiebreak only if the backtest after costs improves; do not tune further.
-4. This choice is made on the same 2018 to 2026 sample it will be backtested on, so the backtest will flatter it. The six held-back months are the honest check: rerun this script with `--include-holdback` only at the go/no-go.
+**Decision: all five factors stay for now.** Following plan v5, we add the remaining layers first (panic momentum weight, cash rule, optimizer), then remove what does not earn its place using the drop-one-factor backtest on the full model, rather than dropping factors on this single test. When we do drop factors, the choice is made on the same 2018 to 2026 sample it is backtested on, so the backtest will flatter it; the six held-back months are the honest check (rerun this script with `--include-holdback` only at the go/no-go).
+
+**Known limitation found here.** 431 of about 1,250 names are unclustered ("other") because they lack a full year of returns before the 2018 cluster fit; they are z-scored together and uncapped. Refitting the clusters each year on past data only would fix this.
