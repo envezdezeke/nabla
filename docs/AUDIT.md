@@ -2,11 +2,11 @@
 
 How the model decides, why each rule exists, and what we know it cannot prove. Every threshold below was fixed before testing; changes made after a test are logged next to that test.
 
-**Status (current build).** Rung 1 of the plan is built and backtested: equal-weight top 15 by the five-factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1`). The stress/panic flags are coded and tested (`src/nabla/regime.py`) but not yet wired into the book; the optimizer is not built. Sections marked [pending] are filled in as those layers land.
+**Status (current build).** Rung 1 of the plan is built and backtested: equal-weight top 15 by the factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1.1`: four factors, after the volatility premium was dropped on the drop-one-factor test). The stress/panic flags are coded and tested (`src/nabla/regime.py`) but not yet wired into the book; the optimizer is not built. Sections marked [pending] are filled in as those layers land.
 
 ## Contents
 1. Strategy in plain English
-2. The five factors
+2. The factors
 3. Portfolio limits
 4. Risk rule: when and why we raise cash
 5. Point-in-time discipline
@@ -17,15 +17,15 @@ How the model decides, why each rule exists, and what we know it cannot prove. E
 
 ## 1. Strategy in plain English
 
-Every week we rank about 460 liquid US stocks on five simple, published ideas about which stocks tend to do better over the next month, and hold the 15 best-ranked, roughly equal weight. A stock enters only if it ranks in the top 15 and leaves only if it falls below 30th, so small rank wiggles do not cause trades. When the market is falling and stressed, the plan moves 25% of the book to cash and lowers its market exposure.
+Every week we rank about 460 liquid US stocks on four simple, published ideas (five in the original design; one was dropped after testing) about which stocks tend to do better over the next month, and hold the 15 best-ranked, roughly equal weight. A stock enters only if it ranks in the top 15 and leaves only if it falls below 30th, so small rank wiggles do not cause trades. When the market is falling and stressed, the plan moves 25% of the book to cash and lowers its market exposure.
 
 Why this design: the judges score us on about 21 trading days after our data ends. Over one month, luck dominates any model, so we chose a few robust, well-documented signals and strict risk limits over a complex model that would fit the past and fail the month. Everything is a fixed rule: the same data always gives the same portfolio, which is exactly what the replay tests.
 
 The output of each weekly decision is a complete target portfolio whose weights, including an explicit cash line, sum to 1.
 
-## 2. The five factors
+## 2. The factors
 
-Each factor is computed from data available at the decision time, cleaned the same way (extremes trimmed at the 1st and 99th percentile, compared within groups of similar stocks, capped at 3 standard deviations), and added with equal weight. A stock missing a factor gets a neutral 0 for it, and the total is divided by the fixed weight of all five, so a stock with fewer factors is not favored.
+Each factor is computed from data available at the decision time, cleaned the same way (extremes trimmed at the 1st and 99th percentile, compared within groups of similar stocks, capped at 3 standard deviations), and added with equal weight. A stock missing a factor gets a neutral 0 for it, and the total is divided by the fixed total weight, so a stock with fewer factors is not favored. Four factors carry weight in v1.1; the fifth (volatility premium) is still computed but has weight 0.
 
 **Momentum (12-1).** Return from 12 months ago to 1 month ago, adjusted for splits. Stocks that rose over the past year tend to keep rising for a while, one of the most replicated results in finance (Jegadeesh and Titman, 1993). The most recent month is skipped because very short-term winners tend to reverse. Momentum is known to crash in sharp rebounds after market falls, which is why the panic rule halves its weight (section 4).
 
@@ -35,9 +35,9 @@ Each factor is computed from data available at the decision time, cleaned the sa
 
 **Value.** Trailing twelve-month earnings per share divided by price (earnings yield), from filed results. Cheap stocks have historically outperformed expensive ones over long periods. Money-losing companies get a 0% yield, so they rank last together instead of one extreme loss distorting the scale.
 
-**Volatility premium.** Minus the log of option-implied volatility over the past 21 days' realized volatility. When options price much more risk than the stock has actually shown, the stock has tended to underperform, and the reverse (Bali and Hovakimyan, 2009, on the spread between realized and implied volatility; citation to be verified).
+**Volatility premium (dropped in v1.1, weight 0).** Minus the log of option-implied volatility over the past 21 days' realized volatility. When options price much more risk than the stock has actually shown, the stock has tended to underperform, and the reverse (Bali and Hovakimyan, 2009, on the spread between realized and implied volatility; citation to be verified).
 
-**How they tested.** On 2018 to 2026, momentum and guidance velocity pointed the right way but weakly; quality, value and the volatility premium pointed the wrong way, and no factor was statistically distinguishable from zero (section 9). We keep all five while adding the remaining layers, then remove factors only if the drop-one-factor backtest on the full model says so.
+**How they tested.** On 2018 to 2026, momentum and guidance velocity pointed the right way but weakly; quality, value and the volatility premium pointed the wrong way, and no factor was statistically distinguishable from zero (section 9). The drop-one-factor backtest then decided: removing the volatility premium raised return from 13.7% to 19.2% a year and cut turnover from 21x to 7x, because its daily-moving inputs reshuffled the book every week; removing any of the other four lowered return, so they stay (decision log at the end). This choice used the same sample the backtest reports, so v1.1's backtest is flattered; the held-back months are the honest check.
 
 ## 3. Portfolio limits
 
@@ -98,7 +98,7 @@ The replay calls our model one decision at a time, so any use of future data wou
 | Five-bucket factor test | A factor that is "too good" (very high t-stat or monotone in every year) | Passed: no factor stands out; every t-stat below 1.5 |
 | One-day signal delay | Performance improves or barely changes with older data | [pending] |
 | Random books | Random 15-stock books do as well as ours | [pending] |
-| Drop one factor | One factor carries all of the return | [pending] |
+| Drop one factor | One factor carries all of the return | Done: no single factor carries it; removing momentum or quality costs the most (13.7% to 7.3% and 8.5% a year) |
 
 ## 6. Organizer answers
 
@@ -184,13 +184,15 @@ Run of `explore/07_crowding_check.py --history`: our book against a naive moment
 
 | | Result |
 | --- | --- |
-| Latest book (2026-02-20, last date in the data) | 2 of 15 overlap (13%): STX and ARWR, both ranked 11th or worse on our score |
+| Latest book (2026-09-21, last date in the data; v1.1) | 2 of 15 overlap (13%): MU and WDC, ranked 1st and 5th on our score |
+| Earlier book (2026-02-20; v1) | 2 of 15 overlap: STX and ARWR, both ranked 11th or worse |
 | Month-end history, 2018 to 2026 (top 15 by score, no bands) | Median 3 of 15, highest 8; average by year 1.5 (2026) to 4.4 (2024) |
 
 What it means:
 - **We are not crowded.** Only once in 98 month-ends did more than half the book overlap, so a momentum reversal would not hit us harder than the market just because other teams chase the same names.
 - **The opposite question matters more.** Several holdings fell over the past year (WEN -48%, PYPL -47%, GPN -23%, SPGI -23%). Momentum is one of five equal weights, so value, quality and guidance pull in beaten-down names. That is a choice, not an accident, but the bucket test found value and quality backwards on this sample, so the drop-one-factor run decides whether it stays.
-- **No swap needed.** STX and ARWR are marginal and crowded; the plan allows swapping them for the next best names not in the naive list (CSCO, VAL, CPAY, SCCO, LDOS on 2026-02-20). With 2 of 15 the gain is small, so we do not add a swap rule.
+- **No swap needed.** On the latest date the two overlap names are among our strongest picks, not marginal ones, so the plan's swap rule does not apply. With 2 of 15 the gain from any swap is small, so we do not add a swap rule.
+- **Correction.** The first run of this check stopped at 2026-02-20 because of a cache bug: a year of prices saved by an earlier backtest was never refreshed. It is fixed in `data._cached_years` (with a test); the live book was affected the same way.
 
 ### Backtest results
 
@@ -198,6 +200,8 @@ What it means:
 
 
 #### Full run, January 2018 to February 2026 (v1 with the 2-point no-trade band, costs included)
+
+Note: the audit run in the decision log below reports 13.7% a year for the same v1 configuration; the two runs differ in setup (to be reconciled before final numbers). The v1.1 audit run: 19.2% a year, Sharpe 0.82, alpha +5.7% a year (t = 1.24), turnover 7x a year, 6.6% costs in total; its drawdown and year-by-year rows are [pending].
 
 | | v1 | Equal-weight liquid universe | S&P 500 |
 | --- | --- | --- | --- |
@@ -251,7 +255,7 @@ The plan targets a beta of 1.10 to 1.20 in normal markets; the preliminary run s
 | Random-book (shuffle) test | Do 15 random liquid stocks each week do as well? If so, the scores add nothing. | [pending] |
 | One-day signal delay | Does performance fall when signals are a day late? (look-ahead check) | [pending] |
 | Double costs | Does it still beat equal weight? | [pending] |
-| Drop one factor at a time | Which factors earn their place? | [pending] |
+| Drop one factor at a time | Which factors earn their place? | Done: volatility premium dropped (v1.1); the other four stay (decision log below) |
 | Five-bucket factor test (`explore/05_factor_buckets.py`) | Does each factor point the right way, in most years? | Done: no factor is reliable over 2018 to 2026 (see the factor test above) |
 | Sample holdings (`explore/06_sample_holdings.py`) | Do the names make sense, is any cluster at the 30% cap, does the stress flag fire in 2020 and 2022? | [pending] |
 | No-trade band | How much turnover and cost does it remove? | [pending] |

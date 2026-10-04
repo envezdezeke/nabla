@@ -47,8 +47,10 @@ def _cached_years(name: str, start: date, end: date, fetch) -> pd.DataFrame:
         a, b = max(start, date(y, 1, 1)), min(end, date(y, 12, 31))
         f = CACHE / f"{name}_{y}.parquet"
         df = pd.read_parquet(f) if f.exists() else None
-        if df is None or (len(df) and df["date"].max() < pd.Timestamp(b) and b.year == end.year
-                          and df["date"].min() <= pd.Timestamp(a)):
+        # stale = the requested end is more than a long weekend past the cached last day
+        # (the old test also required min(date) <= Jan 1, a holiday, so it never fired)
+        if df is None or (y == end.year and len(df)
+                          and df["date"].max() < pd.Timestamp(b) - pd.Timedelta(days=4)):
             print(f"  downloading {name} {y} ...", flush=True)
             df = fetch(date(y, 1, 1), min(end, date(y, 12, 31)) if y == end.year else date(y, 12, 31))
             df.to_parquet(f)

@@ -4,15 +4,18 @@ RowdyHacks (UTSA Investment Society) finance track. A long-only, weekly-rebalanc
 15-stock factor book served as a FastAPI app on the starter repo's `statevector` dataset.
 Design: `docs/nabla_plan_v5.pdf`. This is **v1 = rung 1 of the v5 ablation ladder**.
 
-## v1 in one paragraph
+## v1.1 in one paragraph
 
-Each week, on data through the prior close: filter to liquid names (20-day ADV > $50M,
-price > $5, drop the most illiquid Amihud decile); score five factors (12-1 momentum,
-guidance velocity, quality, FCF value, volatility premium), winsorize, z-score within
-about 10 SIC sector groups, clip at ±3, and sum with fixed equal weights where a missing
-factor counts as 0; hold the top 15 equal-weight. Entry band top 15, exit band rank 30,
-max 4 names per sector group (30%), 10% per name, 6% for names with a projected filing
-inside 30 days. Fully invested. No regime dial, no optimizer, no options yet.
+Each week, on data through the prior close: filter to liquid names (20-day ADV >= $50M,
+price > $5, drop the least liquid 10% by Amihud); score four factors (12-1 momentum,
+guidance velocity, quality from filed margins and leverage, value = filed TTM EPS / price),
+winsorize, z-score within 10 return-co-movement clusters (the data has no SIC codes), clip
+at ±3, and sum with fixed equal weights where a missing factor counts as 0; hold the top 15
+equal-weight. Entry band top 15, exit band rank 30, 2-point no-trade band, max 4 names per
+cluster (30%), 10% per name, 6% for names with a projected filing inside 30 days. Fully
+invested. The volatility premium (the plan's fifth factor) has weight 0 after the
+drop-one-factor test. No regime dial, no optimizer, no options yet. Results and every
+decision: `docs/AUDIT.md`.
 
 ## Run
 
@@ -32,14 +35,19 @@ pytest -q                             # runs offline on a synthetic dataset
 | path | what |
 |---|---|
 | `src/nabla/data.py` | loaders anchored to the last trading day, split adjustment, sector groups |
-| `src/nabla/factors.py` | the five factors and the liquidity filter |
+| `src/nabla/factors.py` | the factors and the liquidity filter |
+| `src/nabla/fundamentals.py` | quality and value from filings, point-in-time by filing date |
+| `src/nabla/costs.py` | spread + impact cost model and the 1%-of-ADV cap |
+| `src/nabla/regime.py` | stress and panic flags (coded, not yet wired into the book) |
 | `src/nabla/combine.py` | winsorize, sector z-score, fixed-five composite |
 | `src/nabla/book.py` | banded top-15 selection and capped equal weights |
 | `src/nabla/model.py` | the weekly decision, shared by backtest and API |
 | `src/nabla/sim.py` | weekly backtest with costs, judge-engine conventions |
 | `src/nabla/live.py` | live book; replays recent weeks so bands need no stored state |
 | `app/main.py` | API: judged endpoints plus `/model` (config, coverage, top-30 candidates) |
-| `config/model.json` | every v1 parameter |
+| `config/model.json` | every model parameter |
+| `scripts/audit.py` | leak and robustness tests (random books, delay, double costs, drop one factor) |
+| `docs/AUDIT.md` | how the model decides, limits, results, what we cannot prove |
 
 ## Point-in-time and leakage guards
 
@@ -49,12 +57,12 @@ pytest -q                             # runs offline on a synthetic dataset
 - Splits are back-adjusted only where the raw series shows the jump, so adjusted data is untouched.
 - `tests/test_v1.py` perturbs prices and signals after a date and checks nothing before it changes.
 
-## Known limits of v1 (honest list)
+## Known limits (full list in `docs/AUDIT.md`)
 
-- Not yet run on the real data: every result so far is on a synthetic dataset.
-- Quality is a neutral placeholder until the filing-date-gated fundamentals version lands.
-- Value uses the state vector's FCF gap (`log_fv_gap`), not earnings yield.
+- One test month is mostly noise; a small edge cannot be told from luck.
+- The universe is today's survivors, with almost no financials and no SPY; backtests are flattered.
+- The volatility premium was dropped using the same sample the backtest reports, so the
+  v1.1 backtest is in-sample; the six held-back months are the honest check.
 - The earnings cap uses `days_to_next_report`, a projected SEC filing date that lags the
   actual earnings release.
-- The universe is today's survivors; backtest returns flatter concentrated books.
 - Price momentum is price-only; dividends are not in the signal.
