@@ -7,3 +7,6 @@ pandas>=2.0
 numpy
 pytest
 httpx
+scipy
+scikit-learn
+cvxpy
