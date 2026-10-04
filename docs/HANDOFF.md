@@ -10,7 +10,7 @@ Overnight run (cloud session, Sun ~1-3 AM). Everything below is pushed to main.
 - 17.6% a year vs 11.5% equal weight and 12.4% S&P 500; Sharpe 0.83 vs 0.61 and 0.70; max drawdown 30% vs 39% and 34%.
 - 2018 Q4 -12% (benchmarks -15%/-14%), 2020 +25% (+27%/+16%), 2022 -18% (-19%/-19%).
 - Beta 0.96 (1.11 without the cash dial, inside the plan's band); alpha +5.7%/yr, t = 1.27 (not significant).
-- Beats 5 of 5 random books (8% to 14%/yr). Double costs: 16.6%/yr. One-day delay: 13.7%/yr (falls, no rise: no leak sign, but signals decay fast).
+- Beats 5 of 5 random books (8% to 14%/yr; 20 of 20 in the second round). Double costs: 16.6%/yr. One-day delay: 13.7%/yr (falls, no rise: no leak sign, but signals decay fast).
 - Turnover 7.5x/yr, costs about 0.8%/yr.
 
 **Fixed**
@@ -35,7 +35,7 @@ Overnight run (cloud session, Sun ~1-3 AM). Everything below is pushed to main.
 - 20 random books with the same cash dial: median 10.1%/yr (5.6% to 15.2%); model beats all 20 on return; best random Sharpe 0.83 is level with ours.
 - By year: beats S&P 7 of 9, equal weight 6 of 9; 2024 (+50%) carries much of the edge, 2023 lagged (+13% vs +24%).
 - Ahead of both benchmarks from every start year 2018 to 2022.
-- **Clusters refit yearly: 14.2%/yr, Sharpe 0.69, drawdown 34%.** Results depend on the grouping. The live book fits clusters on the latest year (closer to this variant), so quote ~14% as the honest anchor and decide with Ezekiel how to freeze clusters (item 3).
+- **Clusters refit yearly: 14.2%/yr, Sharpe 0.69, drawdown 34%.** Results depend on the grouping; recorded in AUDIT as a sensitivity check. Team decision: keep quoting 17.6%. Still decide with Ezekiel how to freeze clusters (item 3).
 - New: `sim.run(open_=...)` next-open option (off by default), `data.load_opens`, tests.
 
 ## Who and what
