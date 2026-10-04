@@ -100,7 +100,8 @@ def _maybe_refresh(book: dict | None) -> None:
             newest = str(data.last_trading_day(Dataset() if ds.base else ds))
         except Exception:  # noqa: BLE001
             return
-        if book is None or book.get("as_of", "") < newest:
+        stale_model = book is not None and book.get("model") != model.load_config()["version"]
+        if book is None or book.get("as_of", "") < newest or stale_model:
             _state["refreshing"] = True
             threading.Thread(target=_refresh, daemon=True).start()
 
