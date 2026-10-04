@@ -37,7 +37,9 @@ def build(root: Path, n_tickers: int = 80, start: str = "2019-01-02", end: str =
     dd = days.values.astype("datetime64[D]")
     d_col = np.repeat(dd, n_tickers)
     t_col = np.tile(T, n)
-    pl.DataFrame({"ticker": t_col, "date": d_col, "close": close.ravel(), "volume": vol.ravel()}) \
+    opn = close * (1 + rng.normal(0, 0.003, size=close.shape))
+    pl.DataFrame({"ticker": t_col, "date": d_col, "open": opn.ravel(), "close": close.ravel(),
+                  "volume": vol.ravel()}) \
         .write_parquet(root / "data/canonical/stocks_daily.parquet")
     rv = 0.015 * np.sqrt(252)
     pl.DataFrame({

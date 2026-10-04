@@ -52,6 +52,18 @@ def _holidays(ds) -> set[date]:
         return set()
 
 
+def _closed_inside(days: list[date]) -> set[date]:
+    """Weekdays inside the data's range with no trading: holidays the calendar
+    panel may not list (e.g. Labor Day)."""
+    have = set(days)
+    out, d = set(), days[0]
+    while d < days[-1]:
+        if d.weekday() < 5 and d not in have:
+            out.add(d)
+        d += timedelta(days=1)
+    return out
+
+
 def next_trading_day(d: date, holidays: set[date]) -> date:
     d += timedelta(days=1)
     while d.weekday() >= 5 or d in holidays:
@@ -99,7 +111,7 @@ def decide(information_cutoff, ds=None, team_id: str | None = None) -> dict:
     cfg = model.load_config()
     cutoff = _parse_cutoff(information_cutoff)
     days = data.trading_days(ds)
-    hol = _holidays(ds)
+    hol = _holidays(ds) | _closed_inside(days)
     today = last_data_day(cutoff, days)
     decided = week_decision_day(today, days, hol)
     rebalance = decided == today and cutoff.date() == today

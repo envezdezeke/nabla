@@ -56,3 +56,10 @@ def test_decision_ignores_later_data(ds, tmp_path):
     a = dc.decide(cut, ds=ds)
     b = dc.decide(cut, ds=Dataset(str(root)))
     assert a["target_holdings"] == b["target_holdings"]
+
+
+def test_closed_weekdays_inside_data_are_holidays():
+    days = [date(2026, 9, 3), date(2026, 9, 4), date(2026, 9, 8)]  # Labor Day 9/7 missing
+    hol = dc._closed_inside(days)
+    assert date(2026, 9, 7) in hol
+    assert dc.next_trading_day(date(2026, 9, 4), hol) == date(2026, 9, 8)
