@@ -33,6 +33,8 @@ spec.loader.exec_module(audit)
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--seeds", type=int, default=20)
+ap.add_argument("--seed-offset", type=int, default=0)
+ap.add_argument("--out", default="robustness.json")
 ap.add_argument("--only", default="fills,random,years,starts,clusters")
 args = ap.parse_args()
 want = set(args.only.split(","))
@@ -53,7 +55,7 @@ print(f"window {start.date()} -> {end.date()}, model {cfg['version']}", flush=Tr
 
 
 def save():
-    Path(ROOT / "artifacts" / "robustness.json").write_text(json.dumps(out, indent=2, default=str))
+    Path(ROOT / "artifacts" / args.out).write_text(json.dumps(out, indent=2, default=str))
 
 
 def run(name, strat, **kw):
@@ -102,13 +104,14 @@ if "fills" in want:
 
 if "random" in want:
     rnd = {}
-    for s in range(args.seeds):
+    for s in range(args.seed_offset, args.seed_offset + args.seeds):
         r = run(f"random seed {s}", with_cash(audit.random_strategy(inp.groups, cfg, s)))
         rnd[s] = summary(r)
     rr = pd.DataFrame(rnd).T
     out["random"] = {"n": len(rr), "ann_return": rr["ann_return"].describe().to_dict(),
                      "sharpe": rr["sharpe"].describe().to_dict(),
                      "model_beats_return": int((rr["ann_return"] < out["base"]["ann_return"]).sum()),
+                     "values": rr["ann_return"].round(4).tolist(),
                      "model_beats_sharpe": int((rr["sharpe"] < out["base"]["sharpe"]).sum()),
                      "cash_dial_applied": bool(cfg.get("regime", {}).get("stress_cash"))}
     save()
@@ -144,5 +147,5 @@ if "clusters" in want:
     out["clusters_yearly"] = summary(res)
     out["clusters_yearly"]["unclustered_by_year"] = {y: int((g == "other").sum()) for y, g in by_year.items()}
 
-Path(ROOT / "artifacts" / "robustness.json").write_text(json.dumps(out, indent=2, default=str))
+Path(ROOT / "artifacts" / args.out).write_text(json.dumps(out, indent=2, default=str))
 print(json.dumps(out, indent=2, default=str))
