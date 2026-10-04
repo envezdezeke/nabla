@@ -473,3 +473,41 @@ The same run is v1.3's first true out-of-sample result. Every v1.3 choice (facto
 **Change.** `book.beta_max` 1.2, off by default (`book.beta_limit`). While the book's beta is above 1.2, the highest-beta holding is swapped for the best-scored name ranked within the exit band (30) whose beta is below 1.2, keeping the sector cap. Beta here is the shrunk beta (0.67 beta + 0.33, 252 days vs the S&P 500), cash counts as beta 0, and a missing beta counts as 1. The cap is the plan's number, not fitted.
 
 **Rule.** It is a risk limit, so it is judged as one, on 2018 to the cutoff (the holdout is spent): it ships if annual return is within 1 point of v1.3's AND max drawdown or volatility is lower. Run: `scripts/audit.py --only betacap`.
+
+## Stress tests on v1.3 (`scripts/stress.py`, real data 2018 to the cutoff, plan costs)
+
+| | v1.3 | S&P 500 | EW liquid |
+| --- | --- | --- | --- |
+| Annual return | 14.9% | 13.0% | 12.1% |
+| Sharpe | 0.73 | 0.73 | 0.64 |
+| Max drawdown | 33.9% | 33.9% | 38.9% |
+
+**Crises.** v1.3 falls slightly less than the S&P 500 in the sell-off and then lags the rebound:
+
+| Window | v1.3 | S&P 500 |
+| --- | --- | --- |
+| 2018 Q4 sell-off | -19.0% | -19.8% |
+| Covid crash | -32.3% | -33.9% |
+| Covid rebound | +38.4% | +44.5% |
+| 2022-23 recovery | +20.3% | +28.3% |
+| Tariff rebound | +20.2% | +24.5% |
+
+The more recent shocks were worse: SVB -6.1 points vs the S&P 500, the August 2024 yen unwind -2.4, the 2025 tariff crash -4.0. Two causes: the stress cash dial is still on early in a rebound, and momentum holds the previous leaders while beaten-down names rally.
+
+**Regimes.** Up-month capture is 0.99 and down-month capture 0.84. All of the edge comes from normal and high-volatility days; on calm days v1.3 returned -3.2%/yr vs +2.4% for the S&P 500.
+
+**Judged-window odds** (21 days, every start date):
+- P(loss) 40%.
+- P(beat S&P) 49% (Monte Carlo 52%).
+- P(lose more than 5%) 14.5%.
+- The 5th to 95th percentile gap vs the S&P 500 runs from -4.8% to +5.9%.
+
+Over 12 months v1.3 beat the S&P 500 only 38% of the time. The full-period edge comes from a few strong stretches, so the result is lumpy, not steady.
+
+**Book entering the judged window** (2026-08-21):
+- 252-day beta vs the S&P 500 is 1.65.
+- 26% sits in one cluster (MU, RMBS, NVDA, WDC), plus BE at beta 4.3.
+- A one-factor S&P 500 -10% shock maps to -16.5%.
+- Replayed through past windows, the same book would have lost 25% in the 2025 tariff crash (S&P -19%) and gained 38% in the rebound (S&P +24.5%).
+
+This is the largest known risk for the judged window. The beta cap above is the response, if it passes its rule.
