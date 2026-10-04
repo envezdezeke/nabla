@@ -1,6 +1,6 @@
 {
   "as_of": "2026-09-21",
-  "model": "v1.1",
+  "model": "v1.2",
   "method": "equal_weight_top15_fixed5_composite_bands",
   "holdings": [
     {
