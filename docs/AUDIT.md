@@ -320,3 +320,34 @@ The drop-one-factor backtest on the full v1 book (2018 to the six held-back mont
 **Shipped: cash only (v1.2).** Same Sharpe and alpha as rung 1, 5 points less maximum drawdown, beta 0.96, for about 1.8% a year less return (the dial waits two calm weeks before re-investing, so it misses part of rebounds). It changes nothing unless the stress flag is on, so in a calm judged month the book is identical to rung 1; it is insurance against a sell-off inside the 21 days. This does not meet the plan's strict "beat the previous rung on return" rule; the team chose it for the drawdown and beta at equal Sharpe.
 
 Deviation from plan v5: stress uses SPX volatility only (funding stress left out so backtest and live use identical inputs), and the stress preset's low-beta swap is not built.
+
+## Decision log: stable return clusters (v1.3)
+
+The data has no industry codes, so stocks are grouped by co-movement. The old grouping was one k-means fit (one seed, one year) made once before the backtest start; refitting it yearly moved the backtest from 17.6% to 14.2% a year, and names it could not cluster went uncapped (up to 47% of the book in 2024).
+
+**New method** (`src/nabla/clusters.py`, frozen in `config/clusters.json`): each January 1, using only earlier prices, k-means runs over 20 seeds x 1-, 2- and 3-year windows; the share of runs in which each pair of stocks lands together forms a consensus matrix; average-linkage clustering cuts it into 10 groups of at least 15 names; names with at least 60 days of history join the group they track best. "Other" is now capped like any group.
+
+| Year | Unclustered (consensus) | Unclustered (old) | Year-to-year agreement, consensus | Old single k-means |
+| --- | --- | --- | --- | --- |
+| 2019 | 384 | 435 | 0.41 | 0.23 |
+| 2020 | 341 | 399 | 0.48 | 0.24 |
+| 2021 | 304 | 354 | 0.21 | 0.14 |
+| 2022 | 199 | 300 | 0.47 | 0.19 |
+| 2023 | 147 | 185 | 0.37 | 0.27 |
+| 2024 | 118 | 151 | 0.47 | 0.24 |
+| 2025 | 89 | 126 | 0.44 | 0.23 |
+| 2026 | 50 | 86 | 0.47 | 0.22 |
+
+Agreement is the adjusted Rand index (1 = same grouping, 0 = chance): the consensus groups are about twice as stable. Most "unclustered" names are stocks not yet trading on the fit date (the universe is today's survivors); any name the book can hold has a year of prices and is clustered.
+
+**Backtest with the frozen yearly clusters** (2018 to the six held-back months, plan costs):
+
+| | v1.3 | Equal-weight liquid | S&P 500 |
+| --- | --- | --- | --- |
+| Annual return | 14.2% | 11.5% | 12.4% |
+| Sharpe | 0.70 | 0.61 | 0.70 |
+| Max drawdown | 33.3% | 38.9% | 33.9% |
+| Turnover / year | 8.4x | 4.5x | |
+| Beta, alpha vs S&P (t) | 0.98, +2.5% (0.60) | | |
+
+**What this changes.** The 17.6% headline depended on one lucky grouping and is withdrawn; 14.2% is the figure that follows the stated point-in-time method, and it matches the earlier yearly-refit sensitivity check. v1.3 still beats the equal-weight universe and the S&P 500 on return with S&P-level Sharpe and a smaller drawdown than equal weight, but it beat only 3 of 5 random 15-name books with the same rules and its alpha is not statistically distinguishable from zero. We do not retune factors to recover the old number; that would be fitting to this sample.
