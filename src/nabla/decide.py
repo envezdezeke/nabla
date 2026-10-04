@@ -114,8 +114,13 @@ def _dataset(root: str):
     return _DS[root]
 
 
-def decide(information_cutoff, ds=None, team_id: str | None = None) -> dict:
-    """One decision record for the given information cutoff."""
+def decide(information_cutoff, ds=None, team_id: str | None = None,
+           fallback_book: dict | None = None) -> dict:
+    """One decision record for the given information cutoff.
+
+    fallback_book: if given and the week's book is not already computed, use it
+    instead of computing (the API passes the frozen book when a fresh computation
+    would not finish inside the judges' time limit; the record says so)."""
     ds = ds or _dataset(os.environ.get("SV_DATA_ROOT", "."))
     cfg = model.load_config()
     cutoff = _parse_cutoff(information_cutoff)
@@ -125,9 +130,14 @@ def decide(information_cutoff, ds=None, team_id: str | None = None) -> dict:
     decided = week_decision_day(today, days, hol)
     rebalance = decided == today and cutoff.date() == today
     key = (id(ds), decided, cfg["version"])
-    if key not in _BOOKS:
+    used_fallback = False
+    if key in _BOOKS:
+        book = _BOOKS[key]
+    elif fallback_book is not None:
+        book, used_fallback = fallback_book, True
+    else:
         _BOOKS[key] = live.build_book(ds, cfg, asof=decided)
-    book = _BOOKS[key]
+        book = _BOOKS[key]
     decision_time = cutoff + timedelta(minutes=15)  # 16:00 cutoff -> 16:15 decision
     execute = execution_day(decision_time, hol)
     model_id = f"nabla-{cfg['version']}"
@@ -144,4 +154,5 @@ def decide(information_cutoff, ds=None, team_id: str | None = None) -> dict:
         "data_through": str(today),
         "decided_on": str(decided),
         "regime": book.get("regime"),
+        **({"fallback": f"frozen book as of {book.get('as_of')}"} if used_fallback else {}),
     }

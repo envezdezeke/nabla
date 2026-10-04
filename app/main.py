@@ -14,6 +14,8 @@ import json
 import math
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -122,7 +124,7 @@ def health() -> dict:
     book = _read_book()
     return {"ok": True, "model": model.load_config()["version"],
             "book_as_of": book.get("as_of") if book else None,
-            "refreshing": _state["refreshing"], "last_refresh_error": _state["last_error"]}
+            "refreshing": _state["refreshing"], "warm": _state.get("warm"), "last_refresh_error": _state["last_error"]}
 
 
 # ------------------------------------------------------------- portfolio -----
@@ -151,13 +153,42 @@ class DecideRequest(BaseModel):
     team_id: str | None = None
 
 
+DECIDE_BUDGET_SECONDS = 25  # the judges' timeout is 30 s
+_pool = ThreadPoolExecutor(max_workers=2)
+
+
 @app.post("/decide")
 def decide_post(req: DecideRequest) -> dict:
-    """One decision record for the judges' replay (see src/nabla/decide.py)."""
+    """One decision record for the judges' replay (see src/nabla/decide.py).
+
+    A week's book is computed once and cached. If computing it would overrun the
+    time budget, the answer is the frozen book (config/book.json), marked
+    "fallback", while the computation finishes in the background for later calls."""
+    fut = _pool.submit(replay.decide, req.information_cutoff, ds, req.team_id)
     try:
-        return replay.decide(req.information_cutoff, ds=ds, team_id=req.team_id)
+        return fut.result(timeout=DECIDE_BUDGET_SECONDS)
+    except FuturesTimeout:
+        book = _read_book() or _fallback_book()
+        return replay.decide(req.information_cutoff, ds=ds, team_id=req.team_id, fallback_book=book)
     except ValueError as e:
         raise HTTPException(400, str(e))
+
+
+def _warm() -> None:
+    """Compute the latest weekly decisions at startup so the first judge call is fast."""
+    try:
+        days = data.trading_days(ds)
+        for d in days[-6:]:
+            replay.decide(d, ds=ds)
+        _state["warm"] = f"ok through {days[-1]}"
+    except Exception as e:  # noqa: BLE001 - warming is best-effort
+        _state["warm"] = f"failed: {type(e).__name__}: {e}"
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    _state["warm"] = "running"
+    threading.Thread(target=_warm, daemon=True).start()
 
 
 @app.get("/decide")

@@ -186,3 +186,15 @@ def test_open_fill_at_prior_close_gives_new_book_the_whole_day(ds):
     # same names chosen (signals do not depend on fills); returns differ on trade days
     assert [sorted(w) for w in base["books"]["weights"]] == [sorted(w) for w in early["books"]["weights"]]
     assert not np.allclose(base["daily"].loc[reb, "ret"], early["daily"].loc[reb, "ret"])
+
+
+def test_api_decide_fallback_when_over_budget(root, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import app.main as m
+    from nabla import decide as dc
+    monkeypatch.setattr(m, "DECIDE_BUDGET_SECONDS", 0.0)
+    dc._BOOKS.clear()
+    r = TestClient(m.app).post("/decide", json={"information_cutoff": "2024-03-01"}).json()
+    assert abs(sum(h["weight"] for h in r["target_holdings"]) - 1) < 0.01
+    assert "decision_id" in r
