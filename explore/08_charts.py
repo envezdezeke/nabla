@@ -53,7 +53,8 @@ for name, strat, band in [("nabla", model.strategy(inp.groups, cfg, wf), cfg["bo
     print(f"running {name}", flush=True)
     runs[name] = sim.run(inp.close, inp.volume, sv, strat, start, end, bt["cost_model"], bt["book_value"],
                          fund=inp.fund, splits=inp.splits, liquidity=cfg["liquidity"],
-                         cost_cfg=cfg.get("costs"), no_trade_band=band)
+                         cost_cfg=cfg.get("costs"), no_trade_band=band,
+                         market=spx_px.pct_change())  # per-name beta vs the S&P (beta cap)
 idx = runs["nabla"]["daily"].index
 rets = pd.DataFrame({k: v["daily"]["ret"] for k, v in runs.items()})
 rets["S&P 500"] = spx_px.pct_change().reindex(idx).fillna(0.0)
