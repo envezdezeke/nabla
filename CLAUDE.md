@@ -88,6 +88,6 @@ RL bandit, put overlay (unless SPY and its options exist and an option leg passe
 Exact replay interface; in-order calls and state; who sets decision dates and how often; how cash is labeled and `action` values; how returns and costs are computed between executions; timestamped fundamentals in the replay; non-RL model acceptable; SPY in the universe.
 
 ## Repo notes
-- `src/nabla/` is an earlier pandas scaffold for Bloomberg-style columns; adapt, do not reuse directly.
+- `src/nabla/`: v1 pipeline (data, factors, combine, book, sim, live, model). `fundamentals.py` builds quality and value from filed fundamentals, point-in-time (filing matched like the SDK's `asof_fundamentals`; counts from the day after filing, or the acceptance time if present; 60-day lag if unmatched). Column names are guessed from candidates; run `explore/04_fundamentals_check.py` with the token to confirm the mapping, quarterly vs YTD flows, and split restatement.
 - Plans: `docs/nabla_plan_v3.pdf`, `docs/nabla_plan_v5.pdf`. Pitch deck: https://claude.ai/artifact/WXnNHkqcM5McGXFsJ2VqVQ (private until shared).
 - Repo: https://github.com/envezdezeke/nabla. Work directly on `main`; always `git pull` before pushing.

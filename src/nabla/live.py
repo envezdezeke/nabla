@@ -26,7 +26,8 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
         i = dates.get_loc(d) + 1
         ft = factors.factor_table(inp.close.iloc[:i].iloc[-sim.YEAR - 2:],
                                   inp.volume.iloc[:i].iloc[-sim.YEAR - 2:],
-                                  sv_by.get(d, pd.DataFrame(columns=["ticker"])))
+                                  sv_by.get(d, pd.DataFrame(columns=["ticker"])),
+                                  inp.fund, inp.splits)
         w, detail = model.decide(ft, inp.groups, held, cfg)
         held = list(w.index)
 
@@ -42,5 +43,5 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
         "coverage": {f: float(ft.loc[detail.index, f].notna().mean()) for f in factors.FACTORS},
         "candidates": detail[cols].head(30).reset_index().rename(columns={"index": "ticker"})
                       .round(4).to_dict("records"),
-        "notes": inp.notes,
+        "notes": {**inp.notes, **ft.attrs.get("fund_notes", {})},
     }

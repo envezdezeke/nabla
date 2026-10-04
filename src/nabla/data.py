@@ -80,6 +80,24 @@ def load_splits(ds) -> pd.DataFrame:
     return ca[ca["kind"] == "split"][["ticker", "ex_date", "value"]]
 
 
+def load_fundamentals(ds, tickers: list[str]) -> tuple[pd.DataFrame | None, dict]:
+    """Filed quarterly fundamentals with the time each row became public."""
+    from . import fundamentals
+    try:
+        fund = ds.get("fundamentals_actuals", limit=BIG)
+    except Exception as e:  # noqa: BLE001 - optional panel; quality goes neutral
+        return None, {"fundamentals": f"unavailable: {type(e).__name__}"}
+    fund = fund[fund["ticker"].isin(tickers)]
+    try:
+        cal = ds._scan("report_calendar_us").collect().to_pandas()
+    except Exception:  # noqa: BLE001 - no calendar: every row uses the 60-day lag
+        cal = None
+    f, notes = fundamentals.prepare(fund, cal)
+    notes["fundamental_rows"] = int(len(f))
+    notes["filing_calendar"] = cal is not None
+    return f, notes
+
+
 SV_COLS = ["guidance_range_velocity", "atm_iv", "log_fv_gap", "days_to_next_report"]
 
 

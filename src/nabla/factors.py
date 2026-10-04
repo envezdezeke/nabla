@@ -8,6 +8,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from . import fundamentals
+
 MONTH, YEAR = 21, 252
 FACTORS = ["momentum", "guidance_velocity", "quality", "value", "vol_premium"]
 
@@ -29,8 +31,13 @@ def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame) -> pd.DataFrame:
-    """All v1 factors plus the inputs the book needs (liquidity, earnings clock)."""
+def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame,
+                 fund: pd.DataFrame | None = None, splits: pd.DataFrame | None = None) -> pd.DataFrame:
+    """All v1 factors plus the inputs the book needs (liquidity, earnings clock).
+
+    `fund` is `fundamentals.prepare(...)` output; quality and value then come from
+    filings knowable by 16:00 on the last date in `close`. Without it, quality is
+    neutral and value falls back to the state vector's FCF gap."""
     ft = price_features(close, volume)
     sv = sv_day.drop_duplicates("ticker").set_index("ticker").reindex(ft.index)
 
@@ -38,20 +45,24 @@ def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame
         return sv[name].astype(float) if name in sv else pd.Series(np.nan, index=ft.index)
 
     ft["guidance_velocity"] = col("guidance_range_velocity")
-    # FCF value: log_fv_gap = log(spot / FCF fair value); cheaper -> higher
+    # fallback value: log_fv_gap = log(spot / FCF fair value); cheaper -> higher
     ft["value"] = -col("log_fv_gap")
+    ft["quality"] = np.nan
     # volatility premium: options priced above delivered vol predict lower returns.
     # Unit differences in atm_iv only shift the log by a constant, so ranks are unaffected.
     ft["vol_premium"] = -np.log(col("atm_iv") / ft["rv21"])
-    ft["quality"] = quality(ft.index)
     ft["days_to_next_report"] = col("days_to_next_report")
+    ft.attrs["fund_notes"] = {"quality_def": "unavailable", "value_def": "fcf_gap_state_vector"}
+    if fund is not None and len(fund):
+        cutoff = pd.Timestamp(close.index[-1]).normalize() + pd.Timedelta(hours=16)
+        qv, notes = fundamentals.quality_value(fund, ft["price"], cutoff, splits)
+        ft["quality"] = qv["quality"]
+        if notes["value_def"] != "unavailable":
+            ft["value"] = qv["value"]
+        else:
+            notes["value_def"] = "fcf_gap_state_vector"
+        ft.attrs["fund_notes"] = notes
     return ft.replace([np.inf, -np.inf], np.nan)
-
-
-def quality(tickers: pd.Index) -> pd.Series:
-    """Placeholder: neutral (NaN -> 0 in the composite) until the filed-fundamentals
-    version (ROE or gross profit / assets, filing-date gated) is written."""
-    return pd.Series(np.nan, index=tickers)
 
 
 def liquid(ft: pd.DataFrame, min_adv: float = 50e6, min_price: float = 5.0,

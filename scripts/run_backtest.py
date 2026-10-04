@@ -52,7 +52,8 @@ def main() -> None:
     (ROOT / "artifacts").mkdir(exist_ok=True)
     for name, strat in {"v1": model.strategy(inp.groups, cfg),
                         "ew_liquid": model.equal_weight_liquid(cfg)}.items():
-        res = sim.run(inp.close, inp.volume, sv, strat, start, end, cost_model, bt["book_value"])
+        res = sim.run(inp.close, inp.volume, sv, strat, start, end, cost_model, bt["book_value"],
+                      fund=inp.fund, splits=inp.splits)
         results[name] = {**sim.metrics(res["daily"]), "periods": sim.period_returns(res["daily"], PERIODS),
                          "avg_names": float(res["books"]["names"].mean())}
         if name == "v1":

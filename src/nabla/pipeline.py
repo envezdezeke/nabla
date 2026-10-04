@@ -18,6 +18,8 @@ class Inputs:
     groups: pd.Series
     asof: date
     notes: dict = field(default_factory=dict)
+    fund: pd.DataFrame | None = None      # fundamentals.prepare output (quality, value)
+    splits: pd.DataFrame | None = None
 
 
 def load(ds, start: date, end: date, universe: list[str] | None = None) -> Inputs:
@@ -27,4 +29,7 @@ def load(ds, start: date, end: date, universe: list[str] | None = None) -> Input
     close, volume, notes = data.split_adjust(close, volume, data.load_splits(ds))
     groups = data.sector_groups(ds, list(close.columns))
     notes["sector_groups"] = groups.value_counts().to_dict()
-    return Inputs(close, volume, groups, end, notes)
+    splits = data.load_splits(ds)
+    fund, fnotes = data.load_fundamentals(ds, list(close.columns))
+    notes.update(fnotes)
+    return Inputs(close, volume, groups, end, notes, fund, splits)

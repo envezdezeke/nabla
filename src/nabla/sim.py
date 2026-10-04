@@ -46,7 +46,8 @@ def trade_cost(dw: pd.Series, ft: pd.DataFrame, book_value: float, model: str,
 
 def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         strategy: Callable, start, end, cost_model: str = "plan",
-        book_value: float = 1e6) -> dict:
+        book_value: float = 1e6, fund: pd.DataFrame | None = None,
+        splits: pd.DataFrame | None = None) -> dict:
     """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1)."""
     rets = close.pct_change(fill_method=None).fillna(0.0)
     dates = close.index
@@ -66,7 +67,8 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         if i in rebal or (i == lo):
             sig = dates[i - 1]
             ft = factors.factor_table(close.iloc[:i].iloc[-YEAR - 2:], volume.iloc[:i].iloc[-YEAR - 2:],
-                                      sv_by_date.get(sig, pd.DataFrame(columns=["ticker"])))
+                                      sv_by_date.get(sig, pd.DataFrame(columns=["ticker"])),
+                                      fund, splits)
             target = strategy(ft, list(w.index[w > 0]), sig)
             dw = target.reindex(target.index.union(w.index), fill_value=0.0) - \
                 w.reindex(target.index.union(w.index), fill_value=0.0)
