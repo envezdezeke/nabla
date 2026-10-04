@@ -21,7 +21,7 @@ SPY and its options aren't in our universe, so there is no index put to buy, and
 We would take most of that first drop: the stress rule needs the S&P below its 200-day average and high volatility, which a crash from a market high may not show yet, so it protects against drawn-out declines like 2022 rather than a one-day gap. At the next weekly decision, if the flag is on, the book moves to 25% cash and lower beta, and the 10% name cap and liquidity limits mean no single stock can sink the book.
 
 **Which factor matters most, and how do you know?**
-Momentum and guidance velocity are the only two that pointed the right way from 2018 to 2026, each working in 4 of 8 years, but neither is statistically strong on its own. The real answer comes from removing one factor at a time from the full backtest: [pending].
+Momentum: removing it from the full backtest cut return from 13.7% to 7.3% a year, the biggest drop, with quality next (8.5%). We learned which factor hurt the same way: removing the volatility premium raised return to 19.2% and cut turnover from 21x to 7x, so we dropped it, and we say plainly that this choice was made on the same data it is tested on.
 
 **What would you do with more time?**
 Get data that includes delisted companies to remove survivorship bias, and test on a longer history with more market crashes. Also: refit the stock clusters each year, measure real trading costs instead of modeling them, and run the full model through the held-back months several times with different start dates.
