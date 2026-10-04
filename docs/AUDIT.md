@@ -376,3 +376,24 @@ Parameters above are fixed now and will not be retuned after the run.
 If more than one passes, the combination of the passers is run once and ships if it also passes 1-2; otherwise the single passer with the highest annual return ships. The shipped candidate then sees the six held-back months once: it goes live unless it trails v1.3 there by more than 3 points. If nothing passes, v1.3 stays.
 
 **What the p-values can and cannot say.** The output also reports, per variant, the paired block-bootstrap p-value and Newey-West t of the daily return gap vs base, and a deflated Sharpe ratio. They are reported, not used as gates: a 15-name book tracks its variants with about 5-6% annual tracking error, so over ~7.5 years the standard error of an annual-return gap is about 2 points, and a 1-2 point improvement cannot reach t = 2. That is why rule 3 asks the factor to prove itself on the full cross-section (about 400 names a week, ~420 weeks), where the test has power. Trials so far on this sample: vol premium drop, panic rule, cash dial, two clustering methods, three HMM methods, and these five; the deflated Sharpe uses only the six in this run, so it is optimistic.
+
+### Result: post-earnings drift passes; the other three fail
+
+`scripts/audit.py --only returns,ic`, 2018-01-01 to the cutoff minus six months, plan costs.
+
+| Variant | Annual return | Gap vs v1.3 | Max drawdown | Sharpe | Book beta | Factor IC t (rule 3) | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v1.3 (base) | 14.2% | | 33.3% | 0.70 | 0.98 | | |
+| `no_cash` | 14.0% | -0.2 | 40.1% | 0.65 | 1.14 | n/a | fails 1, 2 |
+| `beta_tilt` | 18.4% | +4.2 | 34.1% | 0.79 | 1.09 | beta -0.01 | fails 3 |
+| `mom2` | 17.0% | +2.8 | 39.3% | 0.73 | 1.03 | momentum 1.88 | fails 2, 3 |
+| **`pead`** | **17.7%** | **+3.5** | **35.9%** | **0.83** | **0.98** | **pead 2.28** | **passes** |
+| `all4` (info only) | 24.0% | +9.8 | 46.7% | 0.89 | 1.21 | | not a candidate |
+
+(The script's `gap_ann` is the mean daily gap x 252, not the difference of compounded annual returns, so it differs slightly from the column above.)
+
+Weekly rank IC over all liquid names, 424 weeks (Newey-West t): momentum +0.013 (1.88), guidance velocity +0.011 (2.22), quality +0.008 (1.57), value -0.003 (-0.69), vol premium -0.008 (-2.43), pead +0.009 (2.28), beta 0.000 (-0.01), composite +0.009 (1.91).
+
+**Reading.** `beta_tilt` added return with no stock-picking content: beta has zero IC; the gain is the higher-beta book riding a mostly rising 2018-2026 market. That is the kind of in-sample win rule 3 exists to reject. `mom2` also failed the drawdown limit. `no_cash` gave up nothing in return but added 7 points of drawdown, so the cash dial stays. `pead` adds 3.5 points at the same volatility and beta, its paired bootstrap p is 0.17 (a 15-name book can't resolve this, as noted above), and the factor itself is significant on the full cross-section. Only one variant passed, so there is no combination run. Next: `--only holdout --candidate pead`, once.
+
+Not acted on (pre-registration, and out of scope for this run): vol premium's IC is significantly negative, so dropping it in v1.1 was right, but flipping its sign now would be fitting the sample. Value and quality have negative top-minus-bottom spreads over this period. That fits a growth-led sample and is noted as a risk, not tuned away.

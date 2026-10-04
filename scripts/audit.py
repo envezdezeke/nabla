@@ -17,6 +17,7 @@ Tests (each is a full weekly backtest with the plan's costs and the no-trade ban
             pead (earnings-surprise factor weight 1), all4 (all four, informational only).
             Each gets a paired block-bootstrap p-value and Newey-West t on its gap vs base,
             and a deflated Sharpe over all variants tried.
+  holdout   base vs --candidate (default pead) on the six held-back months only. Run ONCE.
   ic        weekly rank IC of each factor and the composite vs next-week returns
             (all liquid names, so far more power than a 15-name book), Newey-West t
 Writes artifacts/audit.json.
@@ -67,6 +68,19 @@ def capm(port: pd.Series, mkt: pd.Series) -> dict:
             "corr": float(x["p"].corr(x["m"]))}
 
 
+VARIANTS = {"no_cash": {"regime": {"stress_cash": 0.0}},
+            "beta_tilt": {"factor_weights": {"beta": 0.5}},
+            "mom2": {"factor_weights": {"momentum": 2.0}},
+            "pead": {"factor_weights": {"pead": 1.0}}}
+
+
+def with_change(cfg: dict, change: dict) -> dict:
+    c = json.loads(json.dumps(cfg))
+    for sect, kv in change.items():
+        c[sect] = {**c.get(sect, {}), **kv}
+    return c
+
+
 def ic_test(inp, sv, cfg, start, end) -> dict:
     """Weekly cross-sectional rank IC over all liquid names: each factor's z-score
     (within cluster, as the composite uses it) at the signal date vs the return
@@ -110,8 +124,10 @@ def ic_test(inp, sv, cfg, start, end) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start")
-    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov,returns,ic")
+    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov,returns,ic,holdout")
     ap.add_argument("--seeds", type=int, default=5)
+    ap.add_argument("--candidate", default="pead",
+                    help="holdout: comma list of VARIANTS to apply together (run once, see docs/AUDIT.md)")
     args = ap.parse_args()
     want = set((args.only or "base,random,delay,cost2x,drop").split(","))
 
@@ -121,6 +137,10 @@ def main() -> None:
     days = data.trading_days(ds)
     end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30) - pd.DateOffset(months=bt["holdback_months"])
     start = pd.Timestamp(args.start or bt["start"])
+    if "holdout" in want:  # the six held-back months, seen once by the pre-registered winner
+        start = end + pd.Timedelta(days=1)
+        end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)
+        print(f"HOLDOUT {start.date()} -> {end.date()}, candidate {args.candidate}")
     inp = pipeline.load(ds, start.date(), end.date())
     dates = inp.close.index
     sig = [dates[i - k] for i in sim.rebalance_days(dates) for k in (1, 2)]
@@ -143,19 +163,14 @@ def main() -> None:
         return m
 
     out, daily = {}, {}
-    if "base" in want or "returns" in want:
+    if ("base" in want or "returns" in want) and "holdout" not in want:
         out["base"] = run("base", model.strategy(inp.groups, cfg, wf))
     if "returns" in want:
-        variants = {"no_cash": {"regime": {"stress_cash": 0.0}},
-                    "beta_tilt": {"factor_weights": {"beta": 0.5}},
-                    "mom2": {"factor_weights": {"momentum": 2.0}},
-                    "pead": {"factor_weights": {"pead": 1.0}}}
+        variants = dict(VARIANTS)
         variants["all4"] = {k: {kk: vv for v in variants.values() for kk, vv in v.get(k, {}).items()}
                             for k in ("regime", "factor_weights")}
         for name, change in variants.items():
-            c = json.loads(json.dumps(cfg))
-            for sect, kv in change.items():
-                c[sect] = {**c.get(sect, {}), **kv}
+            c = with_change(cfg, change)
             out[name] = run(name, model.strategy(inp.groups, c, wf), cfg=c)
         tried = ["base", *variants]
         srs = [daily[k].mean() / daily[k].std() for k in tried]
@@ -164,8 +179,19 @@ def main() -> None:
             if k != "base":
                 out[k].update(stats.paired_bootstrap(daily[k], daily["base"]))
                 b = out["base"]
-                out[k]["passes_rule"] = bool(out[k]["ann_return"] - b["ann_return"] >= 0.01
+                out[k]["passes_1_2"] = bool(out[k]["ann_return"] - b["ann_return"] >= 0.01
                                              and out[k]["max_drawdown"] - b["max_drawdown"] <= 0.05)
+    if "holdout" in want:
+        change: dict = {}
+        for v in args.candidate.split(","):
+            for sect, kv in VARIANTS[v].items():
+                change.setdefault(sect, {}).update(kv)
+        out["base"] = run("base (v1.3)", model.strategy(inp.groups, cfg, wf))
+        c = with_change(cfg, change)
+        out[args.candidate] = run(args.candidate, model.strategy(inp.groups, c, wf), cfg=c)
+        gap = out[args.candidate]["total_return"] - out["base"]["total_return"]
+        print(f"\nholdout total-return gap {gap:+.2%}: " + ("GO (does not trail by more than 3 points)"
+              if gap >= -0.03 else "NO-GO (trails v1.3 by more than 3 points)"))
     if "ic" in want:
         out.update(ic_test(inp, sv, cfg, start, end))
     if "markov" in want:  # stress method comparison, 25% cash dial in every row
@@ -215,7 +241,7 @@ def main() -> None:
         print("wrote artifacts/audit_ic.json")
     if not out:
         return
-    extra = ["gap_ann", "gap_t_nw", "p_gap_le_0", "dsr", "passes_rule"] if "returns" in want else []
+    extra = ["gap_ann", "gap_t_nw", "p_gap_le_0", "dsr", "passes_1_2"] if "returns" in want else []
     cols = (["switches_per_year", "weeks_flagged"] if "markov" in want else []) + extra + ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
             "alpha_t", "turnover_per_year", "cost_total", "roll21_median", "roll21_p05"]
     table = pd.DataFrame(out).T.reindex(columns=cols)
