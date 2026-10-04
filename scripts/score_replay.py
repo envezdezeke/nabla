@@ -87,8 +87,10 @@ def main(path: Path) -> None:
     gross = (1 + df["gross"]).prod() - 1
     net_flat = (1 + df["gross"] - df["cost_flat"]).prod() - 1
     net_plan = (1 + df["gross"] - df["cost_plan"]).prod() - 1
-    spx = data.spx_close(ds).reindex(df.index.union([close.index[close.index.get_loc(df.index[0]) - 1]]))
-    spx_ret = float(spx.iloc[-1] / spx.iloc[0] - 1) if spx.notna().all() else float("nan")
+    spx = data.spx_close(ds).dropna()
+    a, b = close.index[close.index.get_loc(df.index[0]) - 1], df.index[-1]
+    spx_ret = float(spx.asof(b) / spx.asof(a) - 1) if len(spx) and spx.index[0] <= a else float("nan")
+    spx_note = "" if len(spx) and spx.index[-1] >= b else f"  (index data ends {spx.index[-1].date() if len(spx) else 'n/a'})"
     first = targets[exec_days[0]].drop(CASH, errors="ignore").index
     ew = float((close.loc[df.index[-1], first] / opn.loc[df.index[0], first] - 1).mean())
     eq = (1 + df["gross"] - df["cost_plan"]).cumprod()
@@ -97,7 +99,7 @@ def main(path: Path) -> None:
     print(f"  net, judges' flat 10 bps     {net_flat:+.2%}   (cost {cost_flat:.2%}, turnover {turnover:.2f})")
     print(f"  net, plan cost model         {net_plan:+.2%}   (cost {cost_plan:.2%})")
     print(f"  max drawdown (net, plan)     {float((eq / eq.cummax() - 1).min()):.2%}")
-    print(f"  S&P 500 over the same days   {spx_ret:+.2%}")
+    print(f"  S&P 500 over the same days   {spx_ret:+.2%}{spx_note}")
     print(f"  first book held, equal wt    {ew:+.2%}   (no rebalancing, no costs)")
     print("\n  weekly:")
     for d in exec_days:
