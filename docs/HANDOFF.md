@@ -29,10 +29,10 @@ Read `CLAUDE.md` first (the full v5 plan and rules), then this file.
 | Limits table with reasons | `docs/AUDIT.md` |
 | Organizer questions | `docs/workshop_questions.md` |
 
-## Waiting on real data (token now works on Jesse's Mac and Ezekiel's)
-1. `python explore/04_fundamentals_check.py`: confirm the fundamentals column mapping (names were guessed), quarterly vs year-to-date flows, whether EPS is restated for splits (AAPL 2020, NVDA 2024), and the known-stock check (AAPL/MSFT high quality; banks/energy cheap; loss-makers at the bottom of value).
-2. `python explore/05_factor_buckets.py`: verdict per factor; flag failures to Ezekiel before the composite is final.
-3. Then update `docs/AUDIT.md` (factor results), the deck and the script.
+## Real-data checks: done (see docs/AUDIT.md)
+1. Fundamentals check: mapping confirmed, flows quarterly, EPS split-restated; universe has no big banks, XOM/CVX or SPY; no SIC codes (sector groups = return clusters, 431 newer names fall in one "other" group).
+2. Factor buckets (96 months, 2018-2026): momentum and guidance velocity right sign but weak; quality, value, vol premium backwards; five-factor composite backwards. No leak signs. Recommendation to Ezekiel: score on momentum + guidance only (his call; not yet in config).
+3. AUDIT.md, deck (new slide `factortest`) and script (row 4b) updated.
 
 ## Jesse's remaining tasks (from the plan)
 - Factor signs and IC review, sample holdings review, crowding check.
