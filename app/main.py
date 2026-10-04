@@ -311,7 +311,12 @@ def decisions(req: DecisionsRequest) -> dict:
     try:
         live_ds = ds.refresh()  # see days published since startup
     except DataUnavailable:
-        live_ds = ds.connect()  # no data and no precomputed window -> 503
+        book = _read_book()
+        try:  # no data: the frozen book, held, if the window starts after its data
+            return replay.frozen_series(req.start, req.end, book, req.team_id) if book else ds.connect()
+        except ValueError:
+            raise HTTPException(503, f"data server unavailable ({ds.error}); this window starts on or "
+                                     f"before the frozen book's data ({book.get('as_of')}), so it needs live data")
     fut = _pool.submit(replay.series, req.start, req.end, live_ds, req.team_id, DECISIONS_BUDGET_SECONDS - 15)
     try:
         body = fut.result(timeout=DECISIONS_BUDGET_SECONDS)

@@ -217,6 +217,43 @@ def decide(information_cutoff, ds=None, team_id: str | None = None,
     }
 
 
+def frozen_series(start, end, book: dict, team_id: str | None = None) -> dict:
+    """Series when the data server is unreachable: one decision, the frozen book,
+    made at its own 16:00 ET cutoff and executed at the window's first weekday
+    open, then held. Valid only for a window that starts after the book's data
+    (no lookahead); raises ValueError otherwise."""
+    start, end = pd.Timestamp(start).date(), pd.Timestamp(end).date()
+    as_of = pd.Timestamp(book["as_of"]).date()
+    if start <= as_of:
+        raise ValueError(f"frozen book uses data through {as_of}; window starting {start} would look ahead")
+    first = start
+    while first.weekday() >= 5:
+        first += timedelta(days=1)
+    if first > end:
+        raise ValueError("no weekday in window")
+    cfg = model.load_config()
+    model_id = f"nabla-{cfg['version']}"
+    cutoff = datetime.combine(as_of, CLOSE, ET)
+    rec = {
+        "schema_version": SCHEMA_VERSION,
+        "team_id": team_id or os.environ.get("NABLA_TEAM_ID", "nabla"),
+        "model_id": model_id,
+        "decision_id": 1,
+        "information_cutoff": cutoff.isoformat(),
+        "decision_time": (cutoff + timedelta(minutes=15)).isoformat(),
+        "execution_time": datetime.combine(first, OPEN, ET).isoformat(),
+        "action": "rebalance",
+        "target_holdings": book["holdings"],
+        "data_through": str(as_of),
+        "decided_on": str(as_of),
+        "regime": book.get("regime"),
+        "fallback": f"data server unavailable; frozen book as of {as_of}, held through the window",
+    }
+    return {"series": [rec], "model_id": model_id, "start": str(start), "end": str(end),
+            "note": "data server unreachable: the frozen book (data through its as_of date) "
+                    "bought at the window's first open and held; no lookahead"}
+
+
 def series_days(start: date, end: date, days: list[date], holidays: set[date]) -> list[date]:
     """Decision days for a window: the last weekly decision before `start` (the
     opening book), then every weekly decision day inside the window whose

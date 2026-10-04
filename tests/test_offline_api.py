@@ -41,7 +41,11 @@ def test_api_without_data_server(monkeypatch, tmp_path):
         rows = c.get("/asof", params={"ticker": "AAPL", "on": "2024-03-31"}).json()
         assert rows and all(r["date"] <= "2024-03-31" for r in rows)
         win = {"start": "2026-08-24", "end": "2026-09-21"}
-        assert c.post("/decisions", json=win).status_code == 503  # not precomputed, no data
+        assert c.post("/decisions", json=win).status_code == 503  # would look ahead: needs data
+        nxt = c.post("/decisions", json={"start": "2026-09-26", "end": "2026-10-21"}).json()["series"]
+        from statevector.backtest import validate_decision_series
+        assert len(nxt) == 1 and not validate_decision_series(nxt)[1]
+        assert nxt[0]["execution_time"].startswith("2026-09-28T09:30")  # Saturday start -> Monday open
         frozen = {"series": [{"decision_id": 1}], "model_id": f"nabla-{main.model.load_config()['version']}"}
         (tmp_path / "series.json").write_text(__import__("json").dumps({"2026-08-24:2026-09-21": frozen}))
         monkeypatch.setattr(main, "SERIES", tmp_path / "series.json")
