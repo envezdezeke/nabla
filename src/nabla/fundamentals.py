@@ -163,9 +163,10 @@ def value(t: pd.DataFrame, price: pd.Series, split_in_window: pd.Series,
           loss_to_bottom: bool = True) -> tuple[pd.Series, str]:
     """Earnings yield = TTM EPS / price. Falls back to FCF per share / price.
 
-    Money-losing companies are all set to the bottom of the range (the lowest
-    earnings yield seen that date), so they rank last together instead of being
-    sorted by the size of their loss, which says little about value.
+    Money-losing companies get an earnings yield of 0, the bottom of the range for
+    profitable ones, so they rank last together instead of being sorted by the
+    size of their loss (which says little about value) and an extreme loss cannot
+    compress the spread among profitable names.
     `split_in_window` names are left neutral (only used when SPLIT_GUARD is on)."""
     p = price.reindex(t.index)
     if "eps" in t:
@@ -175,8 +176,11 @@ def value(t: pd.DataFrame, price: pd.Series, split_in_window: pd.Series,
     else:
         return pd.Series(np.nan, index=t.index), "unavailable"
     v = v.replace([np.inf, -np.inf], np.nan)
-    if loss_to_bottom and (v < 0).any():
-        v = v.where(~(v < 0), v.min())
+    if loss_to_bottom:
+        # losses count as zero earnings: they rank last together, without one
+        # extreme penny stock stretching the scale and flattening the spread
+        # among profitable companies
+        v = v.where(~(v < 0), 0.0)
     v = v.where(~split_in_window.reindex(t.index).fillna(False).astype(bool))
     return v, name
 
