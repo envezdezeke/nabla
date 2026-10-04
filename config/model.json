@@ -37,5 +37,10 @@
     "impact_k": 1.0,
     "max_adv_pct": 0.01,
     "note": "half-spread by 20-day dollar-volume tercile among liquid names; impact = k * amihud * |dw| * book / 1e6 per unit traded"
+  },
+  "regime": {
+    "panic_momentum": false,
+    "stress_cash": 0.0,
+    "note": "rung 2 = panic_momentum true; rung 3 = stress_cash 0.25. Flags use SPX only (funding stress left out so the backtest and the live book use identical inputs)."
   }
 }

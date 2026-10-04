@@ -34,3 +34,22 @@ def test_flags_asof_uses_only_past_data():
     a = regime.flags_asof(spx, "2020-03-13")
     b = regime.flags_asof(spx[spx.index <= "2020-03-13"], "2020-03-13")
     assert a == b
+
+
+def test_flags_at_and_decide_regime():
+    import pandas as pd
+    from nabla import model, regime
+    wf = pd.DataFrame({"stress": [False, True], "panic": [False, True]},
+                      index=pd.to_datetime(["2022-01-07", "2022-01-14"]))
+    assert regime.flags_at(wf, "2022-01-13") == {"stress": False, "panic": False}
+    assert regime.flags_at(wf, "2022-01-14") == {"stress": True, "panic": True}
+    assert regime.flags_at(None, "2022-01-14")["stress"] is False
+    names = [f"T{i}" for i in range(40)]
+    ft = pd.DataFrame({"price": 50.0, "adv20": 1e8, "amihud": 0.01, "momentum": range(40),
+                       "guidance_velocity": 0.0, "quality": 0.0, "value": 0.0, "vol_premium": 0.0,
+                       "days_to_next_report": 60.0, "rv21": 0.3}, index=names)
+    cfg = model.load_config()
+    cfg["regime"] = {"panic_momentum": True, "stress_cash": 0.25}
+    w_calm, _ = model.decide(ft, pd.Series("g", index=names), [], cfg, {"stress": False, "panic": False})
+    w_stress, _ = model.decide(ft, pd.Series("g", index=names), [], cfg, {"stress": True, "panic": True})
+    assert abs(w_calm.sum() - 1) < 1e-9 and abs(w_stress.sum() - 0.75) < 1e-9

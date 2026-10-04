@@ -81,3 +81,16 @@ def flags_asof(spx: pd.Series, asof, funding: pd.Series | None = None) -> dict:
     row = w.iloc[-1]
     return {k: (bool(v) if isinstance(v, (bool, np.bool_)) else (None if pd.isna(v) else float(v)))
             for k, v in row.items()} | {"checked": str(w.index[-1].date())}
+
+
+def flags_at(weekly: pd.DataFrame | None, when) -> dict:
+    """Flags from a precomputed weekly_flags table at the last check on or before
+    `when`. weekly_flags is causal row by row (expanding percentiles, forward-only
+    hysteresis), so computing it once over the whole history and reading row t
+    equals recomputing it at t."""
+    if weekly is None or weekly.empty:
+        return {"stress": False, "panic": False}
+    w = weekly[weekly.index <= pd.Timestamp(when)]
+    if w.empty:
+        return {"stress": False, "panic": False}
+    return {"stress": bool(w["stress"].iloc[-1]), "panic": bool(w["panic"].iloc[-1])}

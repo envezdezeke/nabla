@@ -21,6 +21,9 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
     sv = data.load_state_vector(ds, data.window_start(start, 10), asof, sig_dates)
     sv_by = {d: g for d, g in sv.groupby("date")}
 
+    from . import regime
+    wf = regime.weekly_flags(data.spx_close(ds).loc[:pd.Timestamp(asof)])
+
     held: list[str] = []
     prev = pd.Series(dtype=float)
     for d in sig_dates:  # past weekly decisions, then today's
@@ -29,7 +32,8 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
                                   inp.volume.iloc[:i].iloc[-sim.YEAR - 2:],
                                   sv_by.get(d, pd.DataFrame(columns=["ticker"])),
                                   inp.fund, inp.splits)
-        w, detail = model.decide(ft, inp.groups, held, cfg)
+        flags = regime.flags_at(wf, d)
+        w, detail = model.decide(ft, inp.groups, held, cfg, flags)
         w = book.no_trade(prev, w, cfg["book"].get("no_trade_band") or 0.0)
         prev, held = w, list(w.index)
 
@@ -45,5 +49,6 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
         "coverage": {f: float(ft.loc[detail.index, f].notna().mean()) for f in factors.FACTORS},
         "candidates": detail[cols].head(30).reset_index().rename(columns={"index": "ticker"})
                       .round(4).to_dict("records"),
+        "regime": flags,
         "notes": {**inp.notes, **ft.attrs.get("fund_notes", {})},
     }

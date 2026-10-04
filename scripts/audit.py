@@ -11,6 +11,7 @@ Tests (each is a full weekly backtest with the plan's costs and the no-trade ban
   delay     signals one extra day old (should hurt a little; a big gain = leak)
   cost2x    double trading costs
   drop_X    composite without factor X (does each factor earn its place?)
+  ladder    rung 1 (as v1), rung 2 (+ panic momentum weight), rung 3 (+ 25% cash in stress)
 Writes artifacts/audit.json.
 """
 from __future__ import annotations
@@ -28,7 +29,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from statevector import Dataset  # noqa: E402
 
-from nabla import book, data, factors, model, pipeline, sim  # noqa: E402
+from nabla import book, data, factors, model, pipeline, regime, sim  # noqa: E402
 
 
 def random_strategy(groups, cfg, seed):
@@ -59,7 +60,7 @@ def capm(port: pd.Series, mkt: pd.Series) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start")
-    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop")
+    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder")
     ap.add_argument("--seeds", type=int, default=5)
     args = ap.parse_args()
     want = set((args.only or "base,random,delay,cost2x,drop").split(","))
@@ -75,7 +76,9 @@ def main() -> None:
     sig = [dates[i - k] for i in sim.rebalance_days(dates) for k in (1, 2)]
     sig += [dates[dates.searchsorted(start) - k] for k in (1, 2)]
     sv = data.load_state_vector(ds, data.window_start(start.date(), 10), end.date(), sig)
-    spx = data.spx_close(ds).pct_change()
+    spx_px = data.spx_close(ds)
+    spx = spx_px.pct_change()
+    wf = regime.weekly_flags(spx_px.loc[:end])
 
     def run(name, strat, **kw):
         print(f"\n== {name}", flush=True)
@@ -90,22 +93,31 @@ def main() -> None:
 
     out = {}
     if "base" in want:
-        out["base"] = run("base", model.strategy(inp.groups, cfg))
+        out["base"] = run("base", model.strategy(inp.groups, cfg, wf))
+    if "ladder" in want:  # plan v5 ablation rungs 1-3, each must beat the one before
+        for name, rg in {"rung1_v1": {"panic_momentum": False, "stress_cash": 0.0},
+                         "rung2_panic": {"panic_momentum": True, "stress_cash": 0.0},
+                         "rung3_panic_cash": {"panic_momentum": True, "stress_cash": 0.25}}.items():
+            c = json.loads(json.dumps(cfg))
+            c["regime"] = {**c.get("regime", {}), **rg}
+            out[name] = run(name, model.strategy(inp.groups, c, wf), cfg=c)
+        share = wf.loc[start:end, ["stress", "panic"]].mean()
+        print(f"weeks flagged: stress {share['stress']:.0%}, panic {share['panic']:.0%}")
     if "random" in want:
         for s in range(args.seeds):
             out[f"random_{s}"] = run(f"random seed {s}", random_strategy(inp.groups, cfg, s))
     if "delay" in want:
-        out["delay"] = run("delay 1 day", model.strategy(inp.groups, cfg), signal_lag=2)
+        out["delay"] = run("delay 1 day", model.strategy(inp.groups, cfg, wf), signal_lag=2)
     if "cost2x" in want:
         cc = dict(cfg.get("costs") or {"half_spread_bps": [5, 10, 20], "impact_k": 1.0, "max_adv_pct": 0.01})
         cc["half_spread_bps"] = [2 * x for x in cc["half_spread_bps"]]
         cc["impact_k"] = 2 * cc["impact_k"]
-        out["cost2x"] = run("2x costs", model.strategy(inp.groups, cfg), cost_cfg=cc)
+        out["cost2x"] = run("2x costs", model.strategy(inp.groups, cfg, wf), cost_cfg=cc)
     if "drop" in want:
         for f in cfg["factor_weights"]:
             c = json.loads(json.dumps(cfg))
             c["factor_weights"][f] = 0.0
-            out[f"drop_{f}"] = run(f"drop {f}", model.strategy(inp.groups, c), cfg=c)
+            out[f"drop_{f}"] = run(f"drop {f}", model.strategy(inp.groups, c, wf), cfg=c)
 
     cols = ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
             "alpha_t", "turnover_per_year", "cost_total", "roll21_median", "roll21_p05"]
