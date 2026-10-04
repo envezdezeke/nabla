@@ -1,36 +1,60 @@
 # Judge questions: short answers
 
-One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md` (v1.2, 2018 to Feb 2026, costs included).
+One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md` (v1.3, weekly replay Jan 2018 to Feb 2026, costs included).
 
 **One month is mostly luck. How is this skill?**
-It isn't provable in one month, and we don't claim it: what we claim is a process, made of published signals, fixed rules and an eight-year weekly replay that beat the equal-weight universe and the S&P 500 after costs (17.6% vs 11.5% and 12.4% a year). It also beat all 20 random books (15 random liquid stocks under the same rules: median 10% a year, best 15%), so the scores add return, though alpha (+5.7% a year, t = 1.3) is not statistically significant and one year, 2024, carries much of the edge.
+We can't prove skill in one month and don't claim to. We claim a process: published signals, rules fixed before testing, and an eight-year weekly replay that beat the S&P and equal weight after costs (14.2% vs 12.4% and 11.5% a year) and 16 of 20 random portfolios run under the same rules. The edge is not statistically proven (alpha +2.5% a year, t = 0.6).
 
 **How do you know there's no look-ahead?**
-Every decision uses data through the prior close only, fundamentals count from the day after their filing date (60 days after period end when no filing matches), and the decision function takes the cutoff time as its input and never reads today's date. No factor was suspiciously good in our five-bucket test (every t-stat below 1.5), and when we feed the model data one day late, return falls (17.6% to 13.7% a year) rather than rising.
+Every decision uses data through the prior close, filings count from the day after they're filed, and the decision function takes the cutoff as input and never reads today's date. Fed data one day late, return falls (14.2% to 12.4%) rather than rising.
 
 **Why not machine learning or RL?**
-We have about 100 independent months since 2018, and even simple factors can't be told apart from zero on that sample, so a flexible model would learn noise and look great only in the backtest. Fixed rules are transparent, give the same answer on every replay, and can't drift during the test.
+About 100 independent months since 2018, and even simple signals can't be told from luck on them, so a flexible model would learn noise. Fixed rules are transparent and give the same answer on every replay.
 
-**Why beta 1.15 instead of maximizing return?**
-We measured it rather than forcing it: the book's beta is 1.11 in normal markets, inside the plan's 1.10 to 1.20 band, and 0.96 over the whole period because the cash dial cuts exposure in stress. Above about 1.2 the extra return is just leveraged S&P exposure, which in a one-month test mostly makes the bad month worse.
+**What's your market exposure?**
+Beta about 1.0 over the whole period; the cash rule lowers it in stress. We measured it rather than forcing a target.
 
 **Why cash instead of puts?**
-SPY and its options aren't in our universe, so there is no index put to buy, and puts on single names would cost premium every month in a test scored mostly on return. Cash costs nothing, cuts exposure by exactly the amount we choose, and is an explicit line in every portfolio.
+SPY and its options aren't in our universe, and puts cost premium every month in a test scored mostly on return. Cash costs nothing and is an explicit line in every portfolio.
 
 **What happens if the market crashes in week 1?**
-We would take most of that first drop: the stress rule needs the S&P below its 200-day average and high volatility, which a crash from a market high may not show yet, so it protects against drawn-out declines like 2022 rather than a one-day gap. At the next weekly decision, if the flag is on, the book moves to 25% cash and lower beta, and the 10% name cap and liquidity limits mean no single stock can sink the book.
+We take most of the first drop: the stress rule protects against drawn-out declines like 2022, not a one-day gap. At the next weekly check, if the flag is on, the book moves 25% to cash, and no stock can be more than 10%.
 
-**Which factor matters most, and how do you know?**
-Momentum: removing it from the full backtest cut return from 13.7% to 7.3% a year, the biggest drop, with quality next (8.5%). We learned which factor hurt the same way: removing the volatility premium raised return to 19.2% and cut turnover from 21x to 7x, so we dropped it, and we say plainly that this choice was made on the same data it is tested on.
+**Which signal matters most?**
+Momentum: without it, return falls from 14.2% to 10.4% a year. Value is next (11.3%). Quality and guidance didn't help on this sample, but we didn't retune after seeing that, because choosing signals on the same data would just fit the past.
 
-**What would you do with more time?**
-Get data that includes delisted companies to remove survivorship bias, and test on a longer history with more market crashes. Also: refit the stock clusters each year, measure real trading costs instead of modeling them, and run the full model through the held-back months several times with different start dates.
+**Why did your number drop from an earlier 17.6%?**
+The old figure depended on one lucky way of grouping similar stocks. We switched to a stable grouping refit each January on past data only and reported the honest result, 14.2%, instead of keeping the flattering one.
 
 **Isn't one good year doing all the work?**
-2024 (+50%) carries a lot of it, and we lagged badly in 2023 (+13% vs +24% for the S&P). But the model beat the S&P in 7 of 9 years and stays ahead of both benchmarks from every start year, 2018 to 2022.
+2024 (+48%) carries a lot of it, and we lagged from 2020 to 2023. We beat the S&P in 6 of 9 years and stay ahead of both benchmarks from every start year, 2018 to 2022.
 
 **Does trading at the next open hurt you?**
-No. Rerun over eight years with next-open fills, the model earns 19.0% a year against 17.6% with close fills, because the new book is in place for the whole trading day.
+A little: 13.2% a year against 14.2% with close fills, still ahead of the S&P.
 
 **How sensitive is it to your choices?**
-Double trading costs: 16.6% a year. Data one day late: 13.7%. Next-open fills: 19.0%. Each still beats the S&P's 12.4%.
+Double trading costs: 13.1% a year. Next-open fills: 13.2%. Data one day late: 12.4%, level with the S&P. The edge is real but thin.
+
+**Why hold any cash if you are scored on total return?**
+Only when the stress rule fires, at 25%. It cut our worst drop from 40% to 33%; in a calm month it changes nothing.
+
+**Why equal weight instead of an optimizer?**
+Optimizers rarely beat equal weight out of sample because their return estimates are mostly noise. We planned one; it wasn't ready, so we ship the simpler, tested version.
+
+**How do you handle transaction costs?**
+Every trade pays half a spread of 5, 10 or 20 basis points by liquidity plus a size-based impact cost: about 0.9% a year. At double the costs we still beat the S&P.
+
+**Why 15 stocks?**
+Fewer and one bad pick can sink the month; more and we just track the index. At about 6.7% each, one blowup costs 2 to 3 points. We fixed 15 before testing rather than tuning it.
+
+**Why these four signals?**
+Each has decades of research and an economic reason, and they look at different things: trend, company news, business strength and price. We chose them before testing and kept them as chosen.
+
+**Why 25% cash?**
+Enough to matter in a sell-off, small enough to stay mostly invested when the signal is wrong or the market rebounds fast. Set before testing; we tested on versus off, not other levels.
+
+**Why 10% per stock and 30% per group?**
+Each caps a way to lose: no single stock can sink us (a 50% drop costs at most 5 points), and no single theme can (at most 4 of 15 stocks that move together).
+
+**What would you do with more time?**
+Get data that includes delisted companies to remove survivorship bias, test over more crashes, measure real trading costs, and test other portfolio sizes and cash levels.

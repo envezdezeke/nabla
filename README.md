@@ -60,7 +60,7 @@ pytest -q                             # runs offline on a synthetic dataset
 - As-of date is the last trading day in the data, never `date.today()`.
 - Signals for a rebalance on day t use data through t-1. The research backtest trades at t's
   close (the judges' engine convention); the replay record executes at the next open, which
-  backtests slightly better (19.0% vs 17.6% a year).
+  backtests about a point lower (13.2% vs 14.2% a year).
 - Backtest stops at the SDK holdout cutoff and holds back a further 6 months for the go/no-go.
 - Splits are back-adjusted only where the raw series shows the jump, so adjusted data is untouched.
 - `tests/test_v1.py` perturbs prices and signals after a date and checks nothing before it changes.

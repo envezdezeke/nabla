@@ -2,7 +2,15 @@
 
 Read `CLAUDE.md` first (the v5 plan and rules), then this file, then `docs/AUDIT.md` (results and every decision).
 
-## Overnight summary (Sun morning)
+## Current state (v1.3, Sun midday)
+
+- **Shipped model v1.3:** four signals (momentum, guidance, quality, value), top 15 equal weight with bands and caps, 25% `CASHHOLDING` under the stress flag, stock groups = consensus clusters refit each January on prior data, frozen in `config/clusters.json`. Live book `config/book.json` rebuilt under v1.3.
+- **Backtest (Jan 2018 to Feb 2026, costs included):** 14.2%/yr vs 12.4% S&P and 11.5% equal weight; Sharpe 0.70 (S&P 0.70); max drawdown 33% (S&P 34%); $1 to $2.93. The earlier 17.6% depended on one lucky grouping and is withdrawn.
+- **Robustness (v1.3):** next-open fills 13.2%; double costs 13.1%; one-day delay 12.4% (ties the S&P); beats 16 of 20 random books (median 10.1%); beats the S&P in 6 of 9 years; ahead from every start year 2018 to 2022; cash rule cuts worst drawdown 40% to 33%. Momentum and value carry the model; quality and guidance did not help on this sample (not retuned).
+- **Updated to v1.3:** AUDIT.md (section 9 rewritten), README, CLAUDE.md, JUDGE_QA.md, the pitch deck (all charts redrawn) and the pitch script. Raw results: `artifacts/v13/` (local, gitignored).
+- **Still open:** redeploy and rerun `check.py` against the deployed URL; go/no-go on the six held-back months, then freeze. The replay writer (`decide`) and frozen clusters are done.
+
+## Earlier: overnight summary (Sun morning, v1.2; superseded numbers)
 
 Overnight run (cloud session, Sun ~1-3 AM). Everything below is pushed to main.
 
