@@ -28,7 +28,7 @@ $envLine = "`$env:SV_DATA_ROOT='$($env:SV_DATA_ROOT)'; `$env:SV_DATA_TOKEN='$($e
 Start-Process powershell -ArgumentList "-NoExit", "-Command",
     "cd '$repo'; $envLine; & '$py' -m uvicorn app.main:app --host 127.0.0.1 --port 8000"
 Start-Sleep -Seconds 5
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cloudflared tunnel --url http://localhost:8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "cloudflared tunnel --protocol http2 --url http://localhost:8000"
 
 Write-Host ""
 Write-Host "Two windows opened: the API (port 8000) and the tunnel."
