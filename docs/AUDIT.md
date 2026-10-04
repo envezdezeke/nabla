@@ -14,6 +14,7 @@ How the model decides, why each rule exists, and what we know it cannot prove. E
 7. Known limits
 8. What we tried and cut
 9. Evidence: data checks, factor test, crowding, backtests
+10. Every optimization we tested
 
 ## 1. Strategy in plain English
 
@@ -273,6 +274,60 @@ v1.2 used one single-seed cluster fit made before 2018 and reported 17.6% a year
 | Five-bucket factor test | Done: no factor reliable alone |
 | Sample holdings, crowding check | Done (v1.2 runs): recognizable liquid names; not crowded |
 | Held-back six months | Untouched until the go/no-go |
+
+## 10. Every optimization we tested
+
+We tried many ways to improve the model. Each change was judged against a rule written down before the run (return up without a materially worse drawdown, after costs), and anything that would only fit 2018 to 2026 was rejected. Most ideas failed; the shipped model, v1.3, is what survived. Details are in the decision logs below.
+
+| Change tested | Result | Shipped? |
+| --- | --- | --- |
+| Drop the volatility premium (v1.1) | Return 13.7% to 19.2% a year, turnover 21x to 7x (v1 groups) | Yes |
+| Panic rule: halve momentum after high-volatility declines | Cost about 3% a year, no drawdown help | No |
+| Cash dial: 25% cash under stress (v1.2) | Worst drawdown 40% to 33% (v1.3) | Yes |
+| Stable yearly stock groups (v1.3) | Withdrew a lucky 17.6%; honest 14.2% | Yes |
+| Hidden Markov stress signal | Failed its pre-registered rule (return -3.2 points) | No |
+| Beta tilt toward high-beta stocks | Gain came from market exposure, not stock picking | No |
+| Momentum weight doubled | Failed the drawdown limit | No |
+| No cash dial | Same return, 7 points more drawdown | No |
+| Post-earnings drift signal | Passed in-sample (+3.5 points), failed the one-shot holdout (-4.4 points, beta 1.52) | No |
+| Beta cap at 1.2 (plan v5 band; the current book's beta is about 1.4 to 1.65) | Rule written before the run; result pending | Pending |
+| Optimizer with equal-weight anchor | Not built in time; cut rule says ship the simpler rung | No |
+
+### Parameter perturbations (`scripts/stress.py --only params`)
+
+One change at a time, to see how fragile the result is. This is not a search: nothing in this table ships, and choosing the best row would fit the past. The window runs from 2018 to the SDK cutoff (including the six held-back months), so the shipped model reads 14.9% a year here against 13.0% for the S&P 500.
+
+| Variant | Return / yr | Sharpe | Max drawdown | Beta | Alpha / yr | Turnover / yr | Costs (total) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| **v1.3 as shipped (15 names, exit 30)** | **14.9%** | **0.73** | **33.9%** | **0.99** | **2.5%** | **8.2x** | **7.7%** |
+| 10 names (exit 20) | 18.2% | 0.82 | 31.5% | 1.00 | 5.3% | 11.7x | 10.5% |
+| 12 names (exit 24) | 17.0% | 0.79 | 32.2% | 0.99 | 4.4% | 10.6x | 9.6% |
+| 20 names (exit 40) | 13.4% | 0.69 | 32.0% | 0.97 | 1.2% | 7.5x | 7.3% |
+| 25 names (exit 50) | 16.4% | 0.83 | 30.3% | 0.96 | 3.9% | 7.0x | 6.9% |
+| Exit rank 20 | 15.6% | 0.76 | 30.7% | 0.98 | 3.2% | 12.1x | 11.5% |
+| Exit rank 45 | 15.7% | 0.77 | 34.4% | 0.99 | 3.2% | 6.5x | 5.9% |
+| No-trade band 0 | 14.9% | 0.73 | 33.1% | 0.99 | 2.4% | 10.4x | 9.4% |
+| No-trade band 4% | 14.9% | 0.73 | 32.9% | 0.99 | 2.5% | 8.0x | 7.6% |
+| Stress cash 15% | 15.2% | 0.72 | 35.8% | 1.05 | 2.1% | 8.2x | 7.8% |
+| Stress cash 40% | 14.0% | 0.73 | 31.8% | 0.90 | 2.7% | 8.1x | 7.6% |
+| Group cap 20% | 12.7% | 0.65 | 33.2% | 0.98 | 0.6% | 8.4x | 8.0% |
+| No group cap | 14.5% | 0.71 | 33.4% | 0.99 | 2.2% | 8.4x | 7.9% |
+| Liquidity floor $25M | 18.7% | 0.85 | 34.3% | 1.01 | 5.6% | 8.5x | 8.1% |
+| Liquidity floor $100M | 16.3% | 0.79 | 33.7% | 1.00 | 3.6% | 8.2x | 7.4% |
+| Random factor weights, draw 0 (mom 1.0, guid 1.1, qual 0.9, val 0.7) | 13.8% | 0.69 | 32.9% | 0.97 | 1.8% | 9.2x | 8.2% |
+| Draw 1 (0.8, 0.7, 1.0, 1.7) | 16.1% | 0.80 | 32.0% | 0.94 | 4.1% | 6.7x | 7.2% |
+| Draw 2 (0.8, 0.8, 1.2, 1.2) | 14.1% | 0.71 | 33.4% | 0.97 | 1.9% | 7.1x | 7.1% |
+| Draw 3 (1.0, 0.7, 1.0, 1.3) | 16.6% | 0.80 | 32.8% | 0.98 | 4.0% | 7.4x | 7.7% |
+| Draw 4 (0.6, 0.8, 0.5, 0.6) | 12.4% | 0.67 | 32.7% | 0.92 | 0.8% | 8.4x | 7.5% |
+| Draw 5 (0.5, 0.9, 0.6, 1.1) | 15.8% | 0.81 | 29.5% | 0.92 | 3.9% | 7.0x | 7.1% |
+| Draw 6 (1.1, 0.9, 0.4, 0.8) | 16.6% | 0.78 | 32.7% | 0.97 | 4.4% | 9.1x | 8.4% |
+| Draw 7 (1.0, 1.0, 0.5, 0.8) | 16.1% | 0.78 | 29.2% | 0.96 | 3.9% | 8.5x | 7.7% |
+| Draw 8 (0.7, 0.7, 1.5, 0.7) | 15.2% | 0.77 | 33.6% | 0.95 | 3.0% | 6.7x | 6.4% |
+| Draw 9 (1.0, 1.4, 0.8, 1.0) | 14.7% | 0.77 | 31.0% | 0.93 | 2.8% | 8.6x | 7.6% |
+
+**What it shows.** 22 of 24 perturbations beat the S&P 500 (range 12.4% to 18.7% a year), so the result does not hinge on one lucky setting. Most variants land near or above the shipped model, which was not tuned on this table. Some rows look better (10 names, a $25M liquidity floor), but picking them now would choose on the same sample we report, so v1.3 stays as configured. Changes that hurt are informative: a tighter 20% group cap and a lower-weight draw (draw 4) fall to about the S&P's return.
+
+The rest of `scripts/stress.py` (crisis windows, market regimes, rebalance day and frequency, 3x and 5x costs, noise in the score, random 70% universes) writes to `artifacts/stress.json`.
 
 ## Decision log: volatility premium dropped (v1.1)
 
