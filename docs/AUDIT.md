@@ -61,7 +61,7 @@ Spread by year (bucket 5 minus bucket 1, per month): momentum was negative in 20
 
 **Known limitation found here.** 431 of about 1,250 names are unclustered ("other") because they lack a full year of returns before the 2018 cluster fit; they are z-scored together and uncapped. Refitting the clusters each year on past data only would fix this.
 
-**Decision (pending, Jesse and Ezekiel):** which factors stay in the composite. See the discussion in the pitch notes; the drop-one-factor backtest will confirm.
+**Decision:** all five factors stay for now. Following plan v5, we add the remaining layers first (panic momentum weight, cash rule, optimizer) and then remove what does not earn its place, using the drop-one-factor backtest on the full model rather than this single test.
 
 ## Backtest results
 
