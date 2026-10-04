@@ -4,7 +4,31 @@ Read `CLAUDE.md` first (the v5 plan and rules), then this file, then `docs/AUDIT
 
 ## Overnight summary (Sun morning)
 
-Overnight run in progress (v1.2 backtest, charts, audit); this section is filled in when it finishes.
+Overnight run (cloud session, Sun ~1-3 AM). Everything below is pushed to main.
+
+**Results on the shipped model v1.2, 2018 to Feb 2026, costs included** (`docs/AUDIT.md` section 9 has the tables and charts):
+- 17.6% a year vs 11.5% equal weight and 12.4% S&P 500; Sharpe 0.83 vs 0.61 and 0.70; max drawdown 30% vs 39% and 34%.
+- 2018 Q4 -12% (benchmarks -15%/-14%), 2020 +25% (+27%/+16%), 2022 -18% (-19%/-19%).
+- Beta 0.96 (1.11 without the cash dial, inside the plan's band); alpha +5.7%/yr, t = 1.27 (not significant).
+- Beats 5 of 5 random books (8% to 14%/yr). Double costs: 16.6%/yr. One-day delay: 13.7%/yr (falls, no rise: no leak sign, but signals decay fast).
+- Turnover 7.5x/yr, costs about 0.8%/yr.
+
+**Fixed**
+- `data._cached_years`: a saved year was never refreshed, so the live book and the crowding check used prices only to 2026-02-20. Fixed with tests.
+- API: `/backtest` and `/screen` timed out against the hosted server (check.py 50/100). They now use the yearly cache, warmed at startup. Local check.py: **100/100**.
+- `config/book.json` committed (v1.2, as of 2026-09-21), so a fresh deploy serves our book.
+
+**Made**
+- `docs/img/` charts (growth, drawdown, cluster concentration) via `explore/08_charts.py`.
+- AUDIT.md, README, JUDGE_QA.md, the deck (factor, ladder, regime, backtest slides plus a new growth chart slide) and the pitch script updated to v1.2.
+
+**Still to do (in priority order)**
+1. **Replay record writer:** `decide(information_cutoff)` returning the judged record (schema_version, team_id, model_id, decision_id, cutoff 16:00 ET, decision 16:15, execution next open from the holiday calendar, CASHHOLDING line). Not built; this is what the judges score.
+2. **Next-open fills** in the research backtest. The one-day-delay result says timing matters, so check whether next-open fills cost return.
+3. **Freeze the clusters.** The live book fits clusters on the year before its own start (62 unclustered), the backtest on 2017 (431 unclustered), so live and backtest group stocks differently. Fit once at the cutoff, save to config, use everywhere; record the git commit and data hash in `config/model.json`.
+4. Redeploy and rerun check.py against the deployed URL (allow a minute for the cache to warm after a cold start).
+5. Go/no-go on the six held-back months (`run_backtest.py --include-holdback`), then freeze.
+6. Deck: confirm with Ezekiel that the slide numbers match his runs (his rung-1 run says 19.2%/yr, ours 18.8%; small setup differences).
 
 ## Who and what
 - Team nabla at the RowdyHacks finance track (UTSA Investment Society): **Jesse** (finance: factors, risk rules, audit doc, pitch; GitHub `FroyoMojo`) and **Ezekiel** (quant: pipeline, backtest, API, deploy; GitHub `envezdezeke`, repo owner).
