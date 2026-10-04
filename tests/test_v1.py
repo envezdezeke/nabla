@@ -161,3 +161,28 @@ def test_api_decide(root, tmp_path, monkeypatch):
     r = c.post("/decide", json={"information_cutoff": "2025-06-06"}).json()
     assert r["action"] == "rebalance" and abs(sum(h["weight"] for h in r["target_holdings"]) - 1) < 1e-6
     assert c.get("/decide", params={"information_cutoff": "2025-06-04"}).json()["action"] == "hold"
+
+
+def _small_run(ds, **kw):
+    cfg = model.load_config()
+    start, end = pd.Timestamp("2021-01-04"), pd.Timestamp("2021-03-31")
+    inp = pipeline.load(ds, start.date(), end.date())
+    dates = inp.close.index
+    sig = [dates[i - 1] for i in sim.rebalance_days(dates)] + [dates[dates.searchsorted(start) - 1]]
+    sv = data.load_state_vector(ds, (start - pd.Timedelta(days=20)).date(), end.date(), sig)
+    return inp, sim.run(inp.close, inp.volume, sv, model.strategy(inp.groups, cfg), start, end, **kw)
+
+
+def test_open_fill_equal_to_close_matches_default(ds):
+    inp, base = _small_run(ds)
+    _, same = _small_run(ds, open_=inp.close)  # open == close: trading at the open is trading at the close
+    pd.testing.assert_series_equal(base["daily"]["ret"], same["daily"]["ret"], atol=1e-12)
+
+
+def test_open_fill_at_prior_close_gives_new_book_the_whole_day(ds):
+    inp, base = _small_run(ds)
+    _, early = _small_run(ds, open_=inp.close.shift(1))  # open == prior close
+    reb = base["books"]["date"]
+    # same names chosen (signals do not depend on fills); returns differ on trade days
+    assert [sorted(w) for w in base["books"]["weights"]] == [sorted(w) for w in early["books"]["weights"]]
+    assert not np.allclose(base["daily"].loc[reb, "ret"], early["daily"].loc[reb, "ret"])

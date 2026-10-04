@@ -71,6 +71,23 @@ def load_prices(ds, start: date, end: date, tickers: list[str] | None = None) ->
     return df.reset_index(drop=True)
 
 
+def load_opens(ds, start: date, end: date) -> pd.DataFrame:
+    """Long frame ticker, date, open for [start, end] (own yearly cache, so the
+    close/volume cache stays unchanged). Used only by next-open fill tests."""
+    def fetch(a, b):
+        lf = ds.get("stocks_daily", start=str(a), end=str(b), limit=BIG, lazy=True)
+        df = lf.select(["ticker", "date", "open"]).collect().to_pandas()
+        df["date"] = pd.to_datetime(df["date"])
+        return df
+    return _cached_years("opens", start, end, fetch) if getattr(ds, "base", None) else fetch(start, end)
+
+
+def adjust_like(raw: pd.DataFrame, raw_close: pd.DataFrame, adj_close: pd.DataFrame) -> pd.DataFrame:
+    """Apply the split adjustment of adj_close/raw_close to another price field (e.g. open)."""
+    f = (adj_close / raw_close).reindex_like(raw)
+    return raw * f.fillna(1.0)
+
+
 def to_wide(long: pd.DataFrame, col: str) -> pd.DataFrame:
     return long.pivot_table(index="date", columns="ticker", values=col, aggfunc="last").sort_index()
 

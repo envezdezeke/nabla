@@ -41,14 +41,23 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         book_value: float = 1e6, fund: pd.DataFrame | None = None,
         splits: pd.DataFrame | None = None, liquidity: dict | None = None,
         cost_cfg: dict | None = None, signal_lag: int = 1,
-        no_trade_band: float | None = None) -> dict:
+        no_trade_band: float | None = None, open_: pd.DataFrame | None = None) -> dict:
     """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1).
 
     signal_lag: decisions on day i use data through day i - signal_lag (1 = the
     prior close; 2 is the one-day-delay leak test).
-    no_trade_band: skip weight changes smaller than this (book.no_trade)."""
+    no_trade_band: skip weight changes smaller than this (book.no_trade).
+    open_: split-adjusted opens (same shape as close). When given, rebalances fill
+    at the day's open instead of its close: the old book earns close(t-1)->open(t),
+    the new book open(t)->close(t), costs charged at the open. A missing open
+    counts as the prior close. Default None keeps the judges' close convention."""
     from .book import no_trade
     rets = close.pct_change(fill_method=None).fillna(0.0)
+    if open_ is not None:
+        opn = open_.reindex_like(close).where(lambda x: x > 0)
+        opn = opn.fillna(close.shift(1))  # no open print: the prior close
+        on_rets = (opn / close.shift(1) - 1).fillna(0.0)
+        id_rets = (close / opn - 1).fillna(0.0)
     dates = close.index
     lo, hi = dates.searchsorted(pd.Timestamp(start)), dates.searchsorted(pd.Timestamp(end), side="right")
     lo = max(lo, YEAR + signal_lag + 1)
@@ -59,9 +68,11 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
     out, books = [], []
     value = 1.0
     for i in range(lo, hi):
-        r = float((w * rets.iloc[i].reindex(w.index).fillna(0.0)).sum()) if len(w) else 0.0
+        at_open = open_ is not None and (i in rebal or i == lo)
+        day = on_rets.iloc[i] if at_open else rets.iloc[i]
+        r = float((w * day.reindex(w.index).fillna(0.0)).sum()) if len(w) else 0.0
         if len(w):  # drift; weights stay fractions of the whole book, cash included
-            w = w * (1 + rets.iloc[i].reindex(w.index).fillna(0.0)) / (1 + r)
+            w = w * (1 + day.reindex(w.index).fillna(0.0)) / (1 + r)
         cost, turn = 0.0, 0.0
         if i in rebal or (i == lo):
             j = i - signal_lag + 1  # rows [0, j) are known at the decision
@@ -81,6 +92,10 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
                 print(f"  rebalance {len(books)}/{len(rebal)} ({dates[i].date()})", flush=True)
             books.append({"date": dates[i], "signal_date": sig, "names": len(w),
                           "turnover": turn, "cost": cost, "weights": w.round(6).to_dict()})
+        if at_open and len(w):  # new book earns open -> close
+            r_id = float((w * id_rets.iloc[i].reindex(w.index).fillna(0.0)).sum())
+            w = w * (1 + id_rets.iloc[i].reindex(w.index).fillna(0.0)) / (1 + r_id)
+            r = (1 + r) * (1 + r_id) - 1
         port = r - cost
         value *= 1 + port
         out.append((dates[i], port, r, turn, cost))
