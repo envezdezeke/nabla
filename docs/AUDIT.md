@@ -397,3 +397,16 @@ Weekly rank IC over all liquid names, 424 weeks (Newey-West t): momentum +0.013 
 **Reading.** `beta_tilt` added return with no stock-picking content: beta has zero IC; the gain is the higher-beta book riding a mostly rising 2018-2026 market. That is the kind of in-sample win rule 3 exists to reject. `mom2` also failed the drawdown limit. `no_cash` gave up nothing in return but added 7 points of drawdown, so the cash dial stays. `pead` adds 3.5 points at the same volatility and beta, its paired bootstrap p is 0.17 (a 15-name book can't resolve this, as noted above), and the factor itself is significant on the full cross-section. Only one variant passed, so there is no combination run. Next: `--only holdout --candidate pead`, once.
 
 Not acted on (pre-registration, and out of scope for this run): vol premium's IC is significantly negative, so dropping it in v1.1 was right, but flipping its sign now would be fitting the sample. Value and quality have negative top-minus-bottom spreads over this period. That fits a growth-led sample and is noted as a risk, not tuned away.
+
+### Result: PEAD fails the holdout; v1.3 stays
+
+`scripts/audit.py --only holdout --candidate pead`, run once on the six held-back months (cutoff minus six months to cutoff), plan costs:
+
+| | Total return (6 mo) | Sharpe | Max drawdown | Book beta | Alpha vs S&P (t) |
+| --- | --- | --- | --- | --- | --- |
+| v1.3 | 19.7% | 1.83 | 7.8% | 1.13 | +13.3%/yr (0.70) |
+| v1.3 + pead | 15.3% | 1.17 | 15.6% | 1.52 | -1.1%/yr (-0.05) |
+
+Gap -4.4 points, beyond the pre-registered 3-point tolerance: **NO-GO. `pead` stays at weight 0; the model stays v1.3.** Six months is too short to show PEAD has no edge: the gap is within noise for a 15-name book. The failure is still informative, though. In this window PEAD pulled the book into high-beta names (beta 1.52) and doubled the drawdown, which is the wrong risk to carry into a 21-day judged window. We do not retune PEAD (window, scaling, weight) and test again: the held-back months are now spent, and any further choice made with them would be in-sample.
+
+The same run is v1.3's first true out-of-sample result. Every v1.3 choice (factors, weights, clusters, cash dial) was fixed on 2018 to the cutoff minus six months, and over the untouched months it returned 19.7% with Sharpe 1.83 and a 7.8% max drawdown.
