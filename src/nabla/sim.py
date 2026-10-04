@@ -80,7 +80,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
             if len(books) % 50 == 0:
                 print(f"  rebalance {len(books)}/{len(rebal)} ({dates[i].date()})", flush=True)
             books.append({"date": dates[i], "signal_date": sig, "names": len(w),
-                          "turnover": turn, "cost": cost})
+                          "turnover": turn, "cost": cost, "weights": w.round(6).to_dict()})
         port = r - cost
         value *= 1 + port
         out.append((dates[i], port, r, turn, cost))
