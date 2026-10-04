@@ -33,4 +33,4 @@ Get data that includes delisted companies to remove survivorship bias, and test 
 No. Rerun over eight years with next-open fills, the model earns 19.0% a year against 17.6% with close fills, because the new book is in place for the whole trading day.
 
 **How sensitive is it to your choices?**
-Double trading costs: 16.6% a year. Data one day late: 13.7%. Regrouping the stocks every year: 14.2%. Each still beats the S&P's 12.4%.
+Double trading costs: 16.6% a year. Data one day late: 13.7%. Next-open fills: 19.0%. Each still beats the S&P's 12.4%.
