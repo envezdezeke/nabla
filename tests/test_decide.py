@@ -73,3 +73,17 @@ def test_execution_is_after_the_decision():
     assert dc.execution_day(wed_10 + pd.Timedelta(minutes=15), hol) == date(2024, 6, 6)
     wed_8 = dc._parse_cutoff("2024-06-05T08:00:00-04:00")         # before the open -> same day
     assert dc.execution_day(wed_8 + pd.Timedelta(minutes=15), hol) == date(2024, 6, 5)
+
+
+def test_series_grid_and_records(ds):
+    from statevector.backtest import validate_decision_series
+    days = list(ds.trading_days())
+    end = days[-1]
+    start = (pd.Timestamp(end) - pd.Timedelta(days=28)).date()
+    body = dc.series(start, end, ds=ds)
+    recs = body["series"]
+    assert [r["decision_id"] for r in recs] == list(range(1, len(recs) + 1))
+    assert recs[0]["information_cutoff"] < str(start)            # opening book before the window
+    decisions, errors = validate_decision_series(recs)
+    assert not errors, errors
+    assert len(decisions) == len(recs) >= 4

@@ -185,3 +185,35 @@ def decide(information_cutoff, ds=None, team_id: str | None = None,
         "regime": book.get("regime"),
         **({"fallback": f"frozen book as of {book.get('as_of')}"} if used_fallback else {}),
     }
+
+
+def series_days(start: date, end: date, days: list[date], holidays: set[date]) -> list[date]:
+    """Decision days for a window: the last weekly decision before `start` (the
+    opening book), then every weekly decision day inside the window whose
+    execution (next trading day) still falls on or before `end`."""
+    hol = holidays | _closed_inside(days)
+    pre = [d for d in days if d < start and is_rebalance_day(d, hol)]
+    inside = [d for d in days if start <= d <= end and is_rebalance_day(d, hol)]
+    grid = pre[-1:] + inside
+    return [d for d in grid if next_trading_day(d, hol) <= end]
+
+
+def series(start, end, ds=None, team_id: str | None = None) -> dict:
+    """POST /decisions body for the judges' decision-series rubric
+    (starter launchpad/rubric/decisions.yaml): the frozen model replayed week by
+    week through [start, end]. Each record is decide() at that day's 16:00 ET
+    cutoff, so every book uses only data on or before its own cutoff;
+    decision_id counts 1, 2, ... as the format requires."""
+    ds = ds or _dataset(os.environ.get("SV_DATA_ROOT", "."))
+    start, end = pd.Timestamp(start).date(), pd.Timestamp(end).date()
+    days = data.trading_days(ds)
+    out = []
+    for i, d in enumerate(series_days(start, end, days, _holidays(ds)), 1):
+        rec = decide(d, ds=ds, team_id=team_id)
+        rec["decision_id"] = i
+        rec["action"] = "rebalance"
+        out.append(rec)
+    cfg = model.load_config()
+    return {"series": out, "model_id": f"nabla-{cfg['version']}", "start": str(start), "end": str(end),
+            "note": "weekly decisions (last trading day of each week, 16:00 ET cutoff, next-open execution); "
+                    "each book built only from data on or before its information_cutoff"}

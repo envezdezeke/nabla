@@ -264,6 +264,46 @@ def _startup() -> None:
     threading.Thread(target=_warm, daemon=True).start()
 
 
+class DecisionsRequest(BaseModel):
+    start: date
+    end: date
+    team_id: str | None = None
+    every_days: int | None = None  # accepted for the reference shape; the model decides weekly
+
+
+SERIES = ROOT / "config" / "series.json"
+DECISIONS_BUDGET_SECONDS = 50  # decisions.yaml timeout is 60 s
+
+
+@app.post("/decisions")
+def decisions(req: DecisionsRequest) -> dict:
+    """Decision series for the judges' replay rubric (starter decisions.yaml).
+
+    Served from config/series.json when that window was precomputed
+    (scripts/build_series.py), else computed now from the data server."""
+    if req.end <= req.start:
+        raise HTTPException(400, "end must be after start")
+    key = f"{req.start}:{req.end}"
+    try:
+        stored = json.loads(SERIES.read_text())
+    except (OSError, ValueError):
+        stored = {}
+    if key in stored and stored[key].get("model_id") == f"nabla-{model.load_config()['version']}":
+        return stored[key]
+    live_ds = ds.connect()  # no data and no precomputed window -> 503
+    fut = _pool.submit(replay.series, req.start, req.end, live_ds, req.team_id)
+    try:
+        body = fut.result(timeout=DECISIONS_BUDGET_SECONDS)
+    except FuturesTimeout:
+        raise HTTPException(503, "series still computing; retry in a minute")
+    stored[key] = body
+    try:
+        SERIES.write_text(json.dumps(stored, indent=1, default=str))
+    except OSError:
+        pass
+    return body
+
+
 @app.get("/decide")
 def decide_get(information_cutoff: str, team_id: str | None = None) -> dict:
     return decide_post(DecideRequest(information_cutoff=information_cutoff, team_id=team_id))

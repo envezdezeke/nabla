@@ -40,6 +40,12 @@ def test_api_without_data_server(monkeypatch, tmp_path):
         assert sc.status_code == 200 and {r["ticker"] for r in sc.json()["results"]} == {"AAPL", "MSFT"}
         rows = c.get("/asof", params={"ticker": "AAPL", "on": "2024-03-31"}).json()
         assert rows and all(r["date"] <= "2024-03-31" for r in rows)
+        win = {"start": "2026-08-24", "end": "2026-09-21"}
+        assert c.post("/decisions", json=win).status_code == 503  # not precomputed, no data
+        frozen = {"series": [{"decision_id": 1}], "model_id": f"nabla-{main.model.load_config()['version']}"}
+        (tmp_path / "series.json").write_text(__import__("json").dumps({"2026-08-24:2026-09-21": frozen}))
+        monkeypatch.setattr(main, "SERIES", tmp_path / "series.json")
+        assert c.post("/decisions", json=win).json() == frozen
         assert c.post("/backtest", json={"tickers": ["AAPL"], "start": "2019-01-02",
                                          "end": "2019-06-30"}).status_code == 503  # year not cached
     sys.modules.pop("app.main", None)
