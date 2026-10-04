@@ -90,6 +90,7 @@ The plan targets a beta of 1.10 to 1.20 in normal markets; the preliminary run s
 | Five-bucket factor test (`explore/05_factor_buckets.py`) | Does each factor point the right way, in most years? | Done: no factor is reliable over 2018 to 2026 (see the section above) |
 | Sample holdings (`explore/06_sample_holdings.py`) | Do the names make sense, is any cluster at the 30% cap, does the stress flag fire in 2020 and 2022? | [pending] |
 | No-trade band | How much turnover and cost does it remove? | [pending] |
+| Crowding check (`explore/07_crowding_check.py`) | Do we just hold last year's biggest winners? | Done: no, 2 of 15 overlap (see below) |
 
 Note: this run may predate the latest quality and value fixes (gross margin in quality, split guard off, money-losers at a 0% earnings yield); rerun before the final numbers.
 
@@ -115,3 +116,17 @@ What it means:
 **Decision: all five factors stay for now.** Following plan v5, we add the remaining layers first (panic momentum weight, cash rule, optimizer), then remove what does not earn its place using the drop-one-factor backtest on the full model, rather than dropping factors on this single test. When we do drop factors, the choice is made on the same 2018 to 2026 sample it is backtested on, so the backtest will flatter it; the six held-back months are the honest check (rerun this script with `--include-holdback` only at the go/no-go).
 
 **Known limitation found here.** 431 of about 1,250 names are unclustered ("other") because they lack a full year of returns before the 2018 cluster fit; they are z-scored together and uncapped. Refitting the clusters each year on past data only would fix this.
+
+## Crowding check
+
+Run of `explore/07_crowding_check.py --history`: our book against a naive momentum book, the 20 liquid names with the highest plain 12-month return (what a simple momentum-chasing team would hold). Crowded means more than half of our 15 names are in that list.
+
+| | Result |
+| --- | --- |
+| Latest book (2026-02-20, last date in the data) | 2 of 15 overlap (13%): STX and ARWR, both ranked 11th or worse on our score |
+| Month-end history, 2018 to 2026 (top 15 by score, no bands) | Median 3 of 15, highest 8; average by year 1.5 (2026) to 4.4 (2024) |
+
+What it means:
+- **We are not crowded.** Only once in 98 month-ends did more than half the book overlap, so a momentum reversal would not hit us harder than the market just because other teams chase the same names.
+- **The opposite question matters more.** Several holdings fell over the past year (WEN -48%, PYPL -47%, GPN -23%, SPGI -23%). Momentum is one of five equal weights, so value, quality and guidance pull in beaten-down names. That is a choice, not an accident, but the bucket test found value and quality backwards on this sample, so the drop-one-factor run decides whether it stays.
+- **No swap needed.** STX and ARWR are marginal and crowded; the plan allows swapping them for the next best names not in the naive list (CSCO, VAL, CPAY, SCCO, LDOS on 2026-02-20). With 2 of 15 the gain is small, so we do not add a swap rule.
