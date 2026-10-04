@@ -65,3 +65,22 @@ def test_adv_cap_limits_position_to_one_percent_of_volume():
     ft = _ft()
     cap = costs.adv_cap(ft, 1e6)
     assert np.isclose(cap.iloc[0], 0.01 * 60e6 / 1e6)
+
+
+def _prices(n_days=300, n=30, seed=1):
+    rng = np.random.default_rng(seed)
+    idx = pd.bdate_range("2023-01-02", periods=n_days)
+    cols = [f"S{i:02d}" for i in range(n)]
+    close = pd.DataFrame(50 * np.cumprod(1 + rng.normal(0, 0.01, (n_days, n)), axis=0), idx, cols)
+    volume = pd.DataFrame(np.linspace(1.5e6, 4e7, n)[None, :].repeat(n_days, 0), idx, cols)
+    return close, volume
+
+
+def test_simple_functions():
+    from nabla.simple import liquid_tickers, trading_cost
+    close, volume = _prices()
+    names = liquid_tickers(close, volume)
+    assert 0 < len(names) < close.shape[1] and "S00" not in names   # the thinnest name is dropped
+    c = trading_cost({"S29": 0.10, "CASH": 0.90}, {"S29": 0.05, "S28": 0.08, "CASH": 0.87}, close, volume)
+    assert 0 < c < 0.001
+    assert trading_cost({"S29": 0.1}, {"S29": 0.1}, close, volume) == 0.0
