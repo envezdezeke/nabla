@@ -151,3 +151,13 @@ def test_no_trade_band():
     assert "C" not in out and out.sum() == pytest.approx(1.0)
     assert out["B"] < 0.33                          # moved > 2 points: traded
     assert book.no_trade(pd.Series(dtype=float), target).equals(target)
+
+
+def test_api_decide(root, tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    import app.main as m
+    c = TestClient(m.app)
+    r = c.post("/decide", json={"information_cutoff": "2025-06-06"}).json()
+    assert r["action"] == "rebalance" and abs(sum(h["weight"] for h in r["target_holdings"]) - 1) < 1e-6
+    assert c.get("/decide", params={"information_cutoff": "2025-06-04"}).json()["action"] == "hold"

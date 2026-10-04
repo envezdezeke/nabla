@@ -66,3 +66,14 @@ pytest -q                             # runs offline on a synthetic dataset
 - The earnings cap uses `days_to_next_report`, a projected SEC filing date that lags the
   actual earnings release.
 - Price momentum is price-only; dividends are not in the signal.
+
+## Replay interface (what the judges call)
+
+`src/nabla/decide.py`: `decide(information_cutoff)` returns one decision record
+(`schema_version`, `team_id`, `model_id`, `decision_id`, `information_cutoff`,
+`decision_time`, `execution_time` = next open 09:30 ET, `action`,
+`target_holdings` with `CASHHOLDING` for cash). Only data on or before the cutoff
+is read; the book rebalances on the last trading day of each week and holds
+otherwise. Served at `POST /decide {"information_cutoff": ...}` and
+`GET /decide?information_cutoff=...`. `python scripts/replay.py --start ... --end ...`
+writes a day-by-day record file. Set `NABLA_TEAM_ID` for the team id.

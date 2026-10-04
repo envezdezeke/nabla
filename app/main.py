@@ -29,6 +29,7 @@ from statevector import Dataset, run_backtest  # noqa: E402
 from statevector.backtest import REBALANCE_CHOICES  # noqa: E402
 
 from nabla import data, live, model  # noqa: E402
+from nabla import decide as replay  # noqa: E402
 
 BOOK = ROOT / "config" / "book.json"
 STALE_CHECK_SECONDS = 600
@@ -141,6 +142,27 @@ def model_card() -> dict:
     book = _read_book() or {}
     return {"config": model.load_config(),
             **{k: book.get(k) for k in ("as_of", "coverage", "candidates", "notes")}}
+
+
+# ---------------------------------------------------------------- replay -----
+
+class DecideRequest(BaseModel):
+    information_cutoff: str                      # e.g. "2026-09-25T16:00:00-04:00" or "2026-09-25"
+    team_id: str | None = None
+
+
+@app.post("/decide")
+def decide_post(req: DecideRequest) -> dict:
+    """One decision record for the judges' replay (see src/nabla/decide.py)."""
+    try:
+        return replay.decide(req.information_cutoff, ds=ds, team_id=req.team_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/decide")
+def decide_get(information_cutoff: str, team_id: str | None = None) -> dict:
+    return decide_post(DecideRequest(information_cutoff=information_cutoff, team_id=team_id))
 
 
 # -------------------------------------------------------------- backtest -----

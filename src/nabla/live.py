@@ -11,8 +11,11 @@ import pandas as pd
 from . import book, data, factors, model, pipeline, sim
 
 
-def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
-    asof = data.last_trading_day(ds)
+def build_book(ds, cfg: dict, replay_weeks: int = 8, asof=None) -> dict:
+    """The book decided with data through `asof` (default: the last trading day in
+    the data). Nothing dated after `asof` is read."""
+    days = data.trading_days(ds)
+    asof = data.last_trading_day(ds) if asof is None else max(d for d in days if d <= pd.Timestamp(asof).date())
     start = (pd.Timestamp(asof) - pd.Timedelta(weeks=replay_weeks + 1)).date()
     inp = pipeline.load(ds, start, asof)
     dates = inp.close.index
