@@ -37,6 +37,29 @@ ds = Dataset()
 app = FastAPI(title="nabla portfolio api", version="1.0.0")
 _lock = threading.Lock()
 _state = {"checked": 0.0, "refreshing": False, "last_error": None}
+_price_lock = threading.Lock()
+_screen_cache: dict = {}
+
+
+def _prices(start: date, end: date, tickers: list[str] | None = None):
+    """Daily close/volume through the yearly on-disk cache (data.load_prices).
+
+    Scanning the hosted server file by file takes 45 s or more per request,
+    past the rubric's 30 s timeout; a cached year is read from disk in well
+    under a second. The lock stops two requests writing the same year file."""
+    with _price_lock:
+        return data.load_prices(ds, start, end, tickers)
+
+
+def _warm() -> None:
+    """Fill the cache at startup: the screen window first, then 2020 (the
+    rubric's /backtest request)."""
+    try:
+        last = data.last_trading_day(ds)
+        _screen_table(last)
+        _prices(date(2020, 1, 1), date(2020, 12, 31))
+    except Exception:  # noqa: BLE001 - warming is best effort
+        pass
 
 
 def clean(records: list[dict]) -> list[dict]:
@@ -148,17 +171,13 @@ def backtest(req: BacktestRequest) -> dict:
     if req.cost_bps is not None and req.cost_bps < 0:
         raise HTTPException(400, "cost_bps must be >= 0")
 
-    wide = (
-        ds._scan("stocks_daily", start=str(req.start), end=str(req.end))
-        .filter(pl.col("ticker").is_in(req.tickers) & pl.col("date").is_between(req.start, req.end))
-        .select(["date", "ticker", "close"]).collect()
-        .pivot(on="ticker", index="date", values="close").sort("date")
-    )
-    if wide.height < 3:
+    px = _prices(req.start, req.end, req.tickers)
+    wide_pd = px.pivot_table(index="date", columns="ticker", values="close", aggfunc="last").sort_index()
+    if len(wide_pd) < 3:
         raise HTTPException(400, "insufficient data in range")
-    cols = [c for c in wide.columns if c != "date"]
-    rets = wide.select([pl.col(c) / pl.col(c).shift(1) - 1.0 for c in cols]).fill_null(0.0)
-    metrics = run_backtest(rets, wide["date"].to_list(), req.tickers, weights,
+    rets = pl.from_pandas((wide_pd / wide_pd.shift(1) - 1.0).fillna(0.0).reset_index(drop=True))
+    dates = [d.date() for d in wide_pd.index]
+    metrics = run_backtest(rets, dates, req.tickers, weights,
                            rebalance=req.rebalance, cost_bps=req.cost_bps)
     if not metrics:
         raise HTTPException(400, "no overlapping return days")
@@ -169,15 +188,23 @@ def backtest(req: BacktestRequest) -> dict:
 
 # ----------------------------------------------------------------- screen ----
 
+def _screen_table(asof: date):
+    """20-day average dollar volume per ticker as of the last trading day (memoized per day)."""
+    if asof not in _screen_cache:
+        px = _prices(asof - timedelta(days=45), asof)
+        px = px.assign(dv=px["close"] * px["volume"]).sort_values("date")
+        _screen_cache.clear()
+        _screen_cache[asof] = (px.groupby("ticker")["dv"].apply(lambda x: x.tail(20).mean())
+                               .rename("adv20").reset_index())
+    return _screen_cache[asof].copy()
+
+
 @app.get("/screen")
 def screen(min_adv: float = Query(0, description="min 20d avg dollar volume"),
            sector_contains: str | None = None, limit: int = Query(25, le=200)) -> dict:
     """Liquidity screen anchored to the last trading day in the data."""
-    asof = data.last_trading_day(ds)
-    px = ds._scan("stocks_daily", start=str(asof - timedelta(days=45)), end=str(asof))
-    out = (px.with_columns((pl.col("close") * pl.col("volume")).alias("dv"))
-           .group_by("ticker").agg(pl.col("dv").tail(20).mean().alias("adv20"))
-           .filter(pl.col("adv20") >= min_adv).collect().to_pandas())
+    out = _screen_table(data.last_trading_day(ds))
+    out = out[out["adv20"] >= min_adv]
     if sector_contains:
         try:
             sec = ds.sectors()
@@ -198,3 +225,6 @@ def asof(ticker: str, on: date):
         return clean(ds.fundamentals(ticker, asof=str(on)).to_dict("records"))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, str(e))
+
+
+threading.Thread(target=_warm, daemon=True).start()

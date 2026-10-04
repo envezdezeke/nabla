@@ -1,0 +1,472 @@
+{
+  "as_of": "2026-09-21",
+  "model": "v1.1",
+  "method": "equal_weight_top15_fixed5_composite_bands",
+  "holdings": [
+    {
+      "ticker": "MU",
+      "weight": 0.080001
+    },
+    {
+      "ticker": "NVDA",
+      "weight": 0.064068
+    },
+    {
+      "ticker": "GNTX",
+      "weight": 0.06
+    },
+    {
+      "ticker": "CROX",
+      "weight": 0.074545
+    },
+    {
+      "ticker": "WDC",
+      "weight": 0.06
+    },
+    {
+      "ticker": "CENX",
+      "weight": 0.06
+    },
+    {
+      "ticker": "ZM",
+      "weight": 0.064068
+    },
+    {
+      "ticker": "INDV",
+      "weight": 0.077108
+    },
+    {
+      "ticker": "LLY",
+      "weight": 0.06
+    },
+    {
+      "ticker": "NEM",
+      "weight": 0.06
+    },
+    {
+      "ticker": "JNJ",
+      "weight": 0.06
+    },
+    {
+      "ticker": "PEP",
+      "weight": 0.068346
+    },
+    {
+      "ticker": "META",
+      "weight": 0.075932
+    },
+    {
+      "ticker": "RMBS",
+      "weight": 0.075932
+    },
+    {
+      "ticker": "APA",
+      "weight": 0.06
+    }
+  ],
+  "coverage": {
+    "momentum": 1.0,
+    "guidance_velocity": 0.7061281337047354,
+    "quality": 0.9930362116991643,
+    "value": 0.9930362116991643,
+    "vol_premium": 0.9749303621169917
+  },
+  "candidates": [
+    {
+      "ticker": "MU",
+      "score": 1.9303,
+      "group": "cluster1",
+      "momentum": 4.769,
+      "guidance_velocity": 122.3975,
+      "quality": 0.3801,
+      "value": 0.0429,
+      "vol_premium": -0.1767,
+      "adv20": 24310768971.6708,
+      "days_to_next_report": 4.0
+    },
+    {
+      "ticker": "NVDA",
+      "score": 1.2845,
+      "group": "cluster6",
+      "momentum": 0.2304,
+      "guidance_velocity": 148.3516,
+      "quality": 0.4179,
+      "value": 0.035,
+      "vol_premium": 0.3815,
+      "adv20": 29758306394.2285,
+      "days_to_next_report": 65.0
+    },
+    {
+      "ticker": "GNTX",
+      "score": 1.2722,
+      "group": "cluster4",
+      "momentum": -0.188,
+      "guidance_velocity": 150.0,
+      "quality": 0.2035,
+      "value": 0.0854,
+      "vol_premium": -0.1365,
+      "adv20": 55080460.327,
+      "days_to_next_report": 43.0
+    },
+    {
+      "ticker": "CROX",
+      "score": 1.2391,
+      "group": "cluster4",
+      "momentum": 0.5316,
+      "guidance_velocity": 0.6703,
+      "quality": 0.2067,
+      "value": 0.0944,
+      "vol_premium": -0.1039,
+      "adv20": 131851701.0011,
+      "days_to_next_report": 38.0
+    },
+    {
+      "ticker": "WDC",
+      "score": 1.2344,
+      "group": "cluster1",
+      "momentum": 3.4608,
+      "guidance_velocity": 3.7736,
+      "quality": 0.3107,
+      "value": 0.0602,
+      "vol_premium": -0.273,
+      "adv20": 2843854442.578,
+      "days_to_next_report": 53.0
+    },
+    {
+      "ticker": "CENX",
+      "score": 1.2141,
+      "group": "cluster9",
+      "momentum": 0.6134,
+      "guidance_velocity": NaN,
+      "quality": 0.0464,
+      "value": 0.156,
+      "vol_premium": -0.3176,
+      "adv20": 71565148.5397,
+      "days_to_next_report": 45.0
+    },
+    {
+      "ticker": "ZM",
+      "score": 1.2141,
+      "group": "cluster3",
+      "momentum": 0.2242,
+      "guidance_velocity": 0.0521,
+      "quality": 0.4308,
+      "value": 0.1215,
+      "vol_premium": 0.2009,
+      "adv20": 347973577.7585,
+      "days_to_next_report": 65.0
+    },
+    {
+      "ticker": "INDV",
+      "score": 1.1964,
+      "group": "cluster6",
+      "momentum": 0.6505,
+      "guidance_velocity": 0.8421,
+      "quality": 0.2829,
+      "value": 0.0834,
+      "vol_premium": -0.4768,
+      "adv20": 72847568.1692,
+      "days_to_next_report": 42.0
+    },
+    {
+      "ticker": "LLY",
+      "score": 1.1373,
+      "group": "cluster7",
+      "momentum": 0.6311,
+      "guidance_velocity": 25.7732,
+      "quality": 0.338,
+      "value": 0.0256,
+      "vol_premium": -0.4779,
+      "adv20": 2753728462.6801,
+      "days_to_next_report": 44.0
+    },
+    {
+      "ticker": "NEM",
+      "score": 1.1337,
+      "group": "cluster9",
+      "momentum": 0.6297,
+      "guidance_velocity": NaN,
+      "quality": 0.3932,
+      "value": 0.0645,
+      "vol_premium": -0.1477,
+      "adv20": 1038433371.3787,
+      "days_to_next_report": 31.0
+    },
+    {
+      "ticker": "RTX",
+      "score": 1.0289,
+      "group": "cluster9",
+      "momentum": 0.342,
+      "guidance_velocity": 32.2581,
+      "quality": -0.0416,
+      "value": 0.0296,
+      "vol_premium": -0.798,
+      "adv20": 788032569.2657,
+      "days_to_next_report": 31.0
+    },
+    {
+      "ticker": "SCCO",
+      "score": 1.0103,
+      "group": "cluster9",
+      "momentum": 0.8528,
+      "guidance_velocity": NaN,
+      "quality": 0.3642,
+      "value": 0.0337,
+      "vol_premium": 0.1199,
+      "adv20": 229073259.8108,
+      "days_to_next_report": 40.0
+    },
+    {
+      "ticker": "SMCI",
+      "score": 0.9889,
+      "group": "cluster9",
+      "momentum": -0.2055,
+      "guidance_velocity": 34.2466,
+      "quality": -0.1852,
+      "value": 0.0888,
+      "vol_premium": 0.0716,
+      "adv20": 1472336089.0146,
+      "days_to_next_report": 70.0
+    },
+    {
+      "ticker": "JNJ",
+      "score": 0.9707,
+      "group": "cluster2",
+      "momentum": 0.5352,
+      "guidance_velocity": 3.2609,
+      "quality": 0.3039,
+      "value": 0.0323,
+      "vol_premium": -0.4995,
+      "adv20": 1736980105.5589,
+      "days_to_next_report": 31.0
+    },
+    {
+      "ticker": "PEP",
+      "score": 0.9683,
+      "group": "cluster2",
+      "momentum": 0.0096,
+      "guidance_velocity": 22.369,
+      "quality": 0.0779,
+      "value": 0.0589,
+      "vol_premium": -0.4899,
+      "adv20": 1215085696.4539,
+      "days_to_next_report": 10.0
+    },
+    {
+      "ticker": "VRTX",
+      "score": 0.9558,
+      "group": "cluster2",
+      "momentum": 0.3956,
+      "guidance_velocity": 1.3736,
+      "quality": 0.433,
+      "value": 0.0339,
+      "vol_premium": -0.4273,
+      "adv20": 523554855.6487,
+      "days_to_next_report": 43.0
+    },
+    {
+      "ticker": "ENVA",
+      "score": 0.9532,
+      "group": "cluster0",
+      "momentum": 0.8714,
+      "guidance_velocity": 0.995,
+      "quality": 0.1766,
+      "value": 0.0834,
+      "vol_premium": 0.739,
+      "adv20": 77412984.4522,
+      "days_to_next_report": 31.0
+    },
+    {
+      "ticker": "META",
+      "score": 0.9269,
+      "group": "cluster5",
+      "momentum": -0.3004,
+      "guidance_velocity": 37.0879,
+      "quality": 0.3536,
+      "value": 0.0363,
+      "vol_premium": 0.0045,
+      "adv20": 13010356962.2936,
+      "days_to_next_report": 38.0
+    },
+    {
+      "ticker": "CSCO",
+      "score": 0.9253,
+      "group": "cluster1",
+      "momentum": 0.5957,
+      "guidance_velocity": 108.7912,
+      "quality": 0.2824,
+      "value": 0.0301,
+      "vol_premium": 0.1239,
+      "adv20": 1695942854.3453,
+      "days_to_next_report": 72.0
+    },
+    {
+      "ticker": "DELL",
+      "score": 0.9219,
+      "group": "cluster1",
+      "momentum": 2.291,
+      "guidance_velocity": 260.4167,
+      "quality": -0.0906,
+      "value": 0.0303,
+      "vol_premium": 0.3326,
+      "adv20": 5365380443.4991,
+      "days_to_next_report": 78.0
+    },
+    {
+      "ticker": "PARR",
+      "score": 0.9209,
+      "group": "cluster8",
+      "momentum": 1.0334,
+      "guidance_velocity": NaN,
+      "quality": -0.028,
+      "value": 0.2137,
+      "vol_premium": -0.167,
+      "adv20": 75726251.0164,
+      "days_to_next_report": 44.0
+    },
+    {
+      "ticker": "AMGN",
+      "score": 0.9163,
+      "group": "cluster7",
+      "momentum": 0.5725,
+      "guidance_velocity": 10.4167,
+      "quality": 0.2517,
+      "value": 0.0413,
+      "vol_premium": 0.4652,
+      "adv20": 1186146909.4741,
+      "days_to_next_report": 44.0
+    },
+    {
+      "ticker": "RMBS",
+      "score": 0.8829,
+      "group": "cluster1",
+      "momentum": -0.1418,
+      "guidance_velocity": 185.0,
+      "quality": 0.442,
+      "value": 0.0228,
+      "vol_premium": -0.073,
+      "adv20": 218035461.3132,
+      "days_to_next_report": 36.0
+    },
+    {
+      "ticker": "FTNT",
+      "score": 0.8808,
+      "group": "cluster3",
+      "momentum": 0.8618,
+      "guidance_velocity": 3.6905,
+      "quality": 0.433,
+      "value": 0.0163,
+      "vol_premium": 0.1694,
+      "adv20": 769105787.1267,
+      "days_to_next_report": 39.0
+    },
+    {
+      "ticker": "AMZN",
+      "score": 0.8758,
+      "group": "cluster5",
+      "momentum": 0.1249,
+      "guidance_velocity": 62.5,
+      "quality": 0.0209,
+      "value": 0.0488,
+      "vol_premium": -0.1539,
+      "adv20": 8513980950.1782,
+      "days_to_next_report": 39.0
+    },
+    {
+      "ticker": "LMT",
+      "score": 0.8755,
+      "group": "cluster9",
+      "momentum": 0.2066,
+      "guidance_velocity": 21.978,
+      "quality": -0.0535,
+      "value": 0.0509,
+      "vol_premium": -0.3708,
+      "adv20": 619845081.8137,
+      "days_to_next_report": 31.0
+    },
+    {
+      "ticker": "CRM",
+      "score": 0.8545,
+      "group": "cluster3",
+      "momentum": -0.159,
+      "guidance_velocity": 16600.0,
+      "quality": 0.2741,
+      "value": 0.0466,
+      "vol_premium": 0.7505,
+      "adv20": 4159179392.4675,
+      "days_to_next_report": 66.0
+    },
+    {
+      "ticker": "APA",
+      "score": 0.8451,
+      "group": "cluster8",
+      "momentum": 0.8573,
+      "guidance_velocity": NaN,
+      "quality": 0.2827,
+      "value": 0.108,
+      "vol_premium": -0.0749,
+      "adv20": 242404073.2611,
+      "days_to_next_report": 45.0
+    },
+    {
+      "ticker": "EXPE",
+      "score": 0.784,
+      "group": "cluster3",
+      "momentum": 0.4608,
+      "guidance_velocity": 1.2039,
+      "quality": 0.363,
+      "value": 0.0594,
+      "vol_premium": 0.1681,
+      "adv20": 543594630.6222,
+      "days_to_next_report": 45.0
+    },
+    {
+      "ticker": "AA",
+      "score": 0.775,
+      "group": "cluster9",
+      "momentum": 0.5449,
+      "guidance_velocity": 0.5126,
+      "quality": -0.0866,
+      "value": 0.1095,
+      "vol_premium": -0.1547,
+      "adv20": 185215517.9572,
+      "days_to_next_report": 38.0
+    }
+  ],
+  "regime": {
+    "stress": false,
+    "panic": false
+  },
+  "notes": {
+    "splits_applied": 19,
+    "splits_already_adjusted": 0,
+    "sector_source": "return_clusters_pre_start",
+    "sector_groups": {
+      "cluster4": 152,
+      "cluster3": 151,
+      "cluster5": 145,
+      "cluster7": 125,
+      "cluster9": 116,
+      "cluster1": 115,
+      "cluster0": 113,
+      "cluster6": 108,
+      "cluster2": 90,
+      "cluster8": 80,
+      "other": 62
+    },
+    "fundamental_columns": {
+      "eps": "is_eps",
+      "sales": "sales_rev_turn",
+      "ebit": "ebit",
+      "net_income": "net_income",
+      "fcf": "cf_free_cash_flow",
+      "ebitda": "ebitda",
+      "net_debt": "net_debt",
+      "gross_margin": "gross_margin"
+    },
+    "fundamental_rows": 130661,
+    "filing_calendar": true,
+    "quality_def": "margin_blend:gross_margin+oper_margin+fcf_margin+low_leverage",
+    "value_def": "earnings_yield"
+  }
+}
