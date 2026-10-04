@@ -65,6 +65,20 @@ def knowable_times(fund: pd.DataFrame, cal: pd.DataFrame) -> pd.Series:
         c["avail"] = acc.fillna(c["filing_date"] + pd.Timedelta(days=1))
     else:
         c["avail"] = c["filing_date"] + pd.Timedelta(days=1)
+    if "period_end" in c and c["period_end"].notna().any():
+        # the calendar names the quarter each filing covers: match on it directly,
+        # first filing for that quarter (10-K/A amendments later do not count)
+        c["period_end"] = pd.to_datetime(c["period_end"], errors="coerce").astype("datetime64[ns]")
+        first = (c.dropna(subset=["period_end", "filing_date"]).sort_values("filing_date")
+                 .drop_duplicates(["ticker", "period_end"]))
+        key = pd.DataFrame({"ticker": fund["ticker"].values, "period_end": pe.values, "row": fund.index})
+        m = key.merge(first[["ticker", "period_end", "filing_date", "avail"]], on=["ticker", "period_end"], how="left")
+        ok = m["filing_date"].notna() & (m["filing_date"] <= m["period_end"] + pd.Timedelta(days=120))
+        out.loc[m.loc[ok, "row"].values] = m.loc[ok, "avail"].values
+        unmatched = ~out.index.isin(m.loc[ok, "row"].values)
+        if not unmatched.any():
+            return out
+        fund, pe = fund[unmatched], pe[unmatched]
     left = pd.DataFrame({"ticker": fund["ticker"].values, "key": (pe + pd.Timedelta(days=6)).values,
                          "pe": pe.values, "row": fund.index})
     left = left.sort_values("key")
@@ -126,7 +140,9 @@ def quality(t: pd.DataFrame) -> tuple[pd.Series, str]:
         parts["low_leverage"] = -_safe_div(t["net_debt"], t["ebitda"])
     if len(parts) < 2:
         return pd.Series(np.nan, index=t.index), "unavailable"
-    z = pd.DataFrame({k: (v - v.mean()) / v.std() for k, v in parts.items()})
+    # percentile ranks, not z-scores: tiny-sales names produce margins of +/-20
+    # that would otherwise dominate the blend
+    z = pd.DataFrame({k: v.rank(pct=True) - 0.5 for k, v in parts.items()})
     q = z.mean(axis=1).where(z.notna().sum(axis=1) >= 2)
     return q, "margin_blend:" + "+".join(parts)
 

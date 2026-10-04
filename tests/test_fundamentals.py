@@ -104,3 +104,12 @@ def test_quality_falls_back_to_roe_then_margins():
     qv, notes = F.quality_value(f, pd.Series({"AAA": 1.0, "BBB": 1.0}), pd.Timestamp("2024-12-31"))
     assert notes["quality_def"].startswith("margin_blend")
     assert qv.loc["AAA", "quality"] > qv.loc["BBB", "quality"]
+
+
+def test_calendar_period_end_match_beats_fallback():
+    from nabla import fundamentals as fm
+    fund = pd.DataFrame({"ticker": ["A", "A"], "date": pd.to_datetime(["2024-03-31", "2024-06-30"])})
+    cal = pd.DataFrame({"ticker": ["A", "A"], "filing_date": pd.to_datetime(["2024-04-25", "2024-07-30"]),
+                        "period_end": pd.to_datetime(["2024-03-31", "2024-06-30"])})
+    k = fm.knowable_times(fund, cal)
+    assert list(k) == list(pd.to_datetime(["2024-04-26", "2024-07-31"]))  # day after filing, not +60d
