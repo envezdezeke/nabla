@@ -71,6 +71,28 @@ def load_prices(ds, start: date, end: date, tickers: list[str] | None = None) ->
     return df.reset_index(drop=True)
 
 
+def cached_panel(name: str, start: date, end: date) -> pd.DataFrame:
+    """Read a yearly cache written by _cached_years, without the data server.
+    Used only when the server is unreachable; raises FileNotFoundError for a
+    year that was never downloaded."""
+    parts = []
+    for y in range(start.year, end.year + 1):
+        f = CACHE / f"{name}_{y}.parquet"
+        if not f.exists():
+            raise FileNotFoundError(f"no cached {name} for {y} (data server unreachable)")
+        df = pd.read_parquet(f)
+        parts.append(df[(df["date"] >= pd.Timestamp(start)) & (df["date"] <= pd.Timestamp(end))])
+    return pd.concat(parts, ignore_index=True)
+
+
+def cached_last_day(name: str = "prices") -> date:
+    """Latest date in the newest cached year (the offline stand-in for last_trading_day)."""
+    files = sorted(CACHE.glob(f"{name}_*.parquet"))
+    if not files:
+        raise FileNotFoundError(f"no cached {name} (data server unreachable)")
+    return pd.read_parquet(files[-1], columns=["date"])["date"].max().date()
+
+
 def load_opens(ds, start: date, end: date) -> pd.DataFrame:
     """Long frame ticker, date, open for [start, end] (own yearly cache, so the
     close/volume cache stays unchanged). Used only by next-open fill tests."""

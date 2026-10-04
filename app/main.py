@@ -44,7 +44,8 @@ class _LazyDataset:
     """Connects to the data server on first use instead of at import, and retries
     at most once a minute after a failure. Without data the API still starts:
     /health, /portfolio/holdings, /model and /decide serve the frozen book
-    (config/book.json); data endpoints answer 503."""
+    (config/book.json); /backtest, /screen and /asof read the yearly price and state-vector cache
+    (real data downloaded earlier); without a cached year they answer 503."""
     RETRY_SECONDS = 60
 
     def __init__(self):
@@ -86,7 +87,27 @@ def _prices(start: date, end: date, tickers: list[str] | None = None):
     past the rubric's 30 s timeout; a cached year is read from disk in well
     under a second. The lock stops two requests writing the same year file."""
     with _price_lock:
-        return data.load_prices(ds, start, end, tickers)
+        try:
+            live_ds = ds.connect()
+        except DataUnavailable:
+            df = _offline(lambda: data.cached_panel("prices", start, end))
+            return (df[df["ticker"].isin(tickers)] if tickers is not None else df).reset_index(drop=True)
+        return data.load_prices(live_ds, start, end, tickers)
+
+
+def _offline(read):
+    """Real data downloaded earlier from the data server, read from artifacts/cache."""
+    try:
+        return read()
+    except FileNotFoundError as e:
+        raise DataUnavailable(str(e)) from e
+
+
+def _last_day() -> date:
+    try:
+        return data.last_trading_day(ds.connect())
+    except DataUnavailable:
+        return _offline(data.cached_last_day)
 
 
 def _warm() -> None:
@@ -308,14 +329,14 @@ def _screen_table(asof: date):
 def screen(min_adv: float = Query(0, description="min 20d avg dollar volume"),
            sector_contains: str | None = None, limit: int = Query(25, le=200)) -> dict:
     """Liquidity screen anchored to the last trading day in the data."""
-    out = _screen_table(data.last_trading_day(ds))
+    out = _screen_table(_last_day())
     out = out[out["adv20"] >= min_adv]
     if sector_contains:
         try:
             sec = ds.sectors()
             match = sec[sec["sic_description"].str.contains(sector_contains, case=False, na=False)]["ticker"]
             out = out[out["ticker"].isin(match)]
-        except (FileNotFoundError, KeyError):
+        except (FileNotFoundError, KeyError, DataUnavailable):
             pass
     out = out.sort_values("adv20", ascending=False).head(limit)
     return {"count": int(len(out)), "results": out.to_dict("records")}
@@ -325,9 +346,20 @@ def screen(min_adv: float = Query(0, description="min 20d avg dollar volume"),
 
 @app.get("/asof")
 def asof(ticker: str, on: date):
-    """PIT-safe fundamentals: what a model could have seen on `on`."""
+    """PIT-safe fundamentals: what a model could have seen on `on`.
+
+    Without the data server, the cached state vector for the ticker over the
+    30 days up to `on` (still nothing dated after `on`), marked by "source"."""
     try:
-        return clean(ds.fundamentals(ticker, asof=str(on)).to_dict("records"))
+        live_ds = ds.connect()
+    except DataUnavailable:
+        start = on - timedelta(days=30)
+        sv = _offline(lambda: data.cached_panel("state_vector", start, on))
+        sv = sv[sv["ticker"] == ticker].sort_values("date")
+        sv = sv.assign(date=sv["date"].dt.strftime("%Y-%m-%d"), source="state_vector_cache")
+        return clean(sv.to_dict("records"))
+    try:
+        return clean(live_ds.fundamentals(ticker, asof=str(on)).to_dict("records"))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, str(e))
 
