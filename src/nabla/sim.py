@@ -51,7 +51,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         splits: pd.DataFrame | None = None, liquidity: dict | None = None,
         cost_cfg: dict | None = None, signal_lag: int = 1,
         no_trade_band: float | None = None, open_: pd.DataFrame | None = None,
-        rebal_offset: int = 0, rebal_every: int = 1) -> dict:
+        rebal_offset: int = 0, rebal_every: int = 1, market: pd.Series | None = None) -> dict:
     """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1).
 
     signal_lag: decisions on day i use data through day i - signal_lag (1 = the
@@ -60,7 +60,8 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
     open_: split-adjusted opens (same shape as close). When given, rebalances fill
     at the day's open instead of its close: the old book earns close(t-1)->open(t),
     the new book open(t)->close(t), costs charged at the open. A missing open
-    counts as the prior close. Default None keeps the judges' close convention."""
+    counts as the prior close. Default None keeps the judges' close convention.
+    market: daily S&P 500 returns, used for the per-name beta (factors.price_features)."""
     from .book import no_trade
     rets = close.pct_change(fill_method=None).fillna(0.0)
     if open_ is not None:
@@ -89,7 +90,7 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
             sig = dates[j - 1]
             ft = factors.factor_table(close.iloc[:j].iloc[-YEAR - 2:], volume.iloc[:j].iloc[-YEAR - 2:],
                                       sv_by_date.get(sig, pd.DataFrame(columns=["ticker"])),
-                                      fund, splits)
+                                      fund, splits, market=market)
             target = strategy(ft, list(w.index[w > 0]), sig)
             if no_trade_band:
                 target = no_trade(w, target, no_trade_band)

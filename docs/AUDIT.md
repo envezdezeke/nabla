@@ -410,3 +410,11 @@ Not acted on (pre-registration, and out of scope for this run): vol premium's IC
 Gap -4.4 points, beyond the pre-registered 3-point tolerance: **NO-GO. `pead` stays at weight 0; the model stays v1.3.** Six months is too short to show PEAD has no edge: the gap is within noise for a 15-name book. The failure is still informative, though. In this window PEAD pulled the book into high-beta names (beta 1.52) and doubled the drawdown, which is the wrong risk to carry into a 21-day judged window. We do not retune PEAD (window, scaling, weight) and test again: the held-back months are now spent, and any further choice made with them would be in-sample.
 
 The same run is v1.3's first true out-of-sample result. Every v1.3 choice (factors, weights, clusters, cash dial) was fixed on 2018 to the cutoff minus six months, and over the untouched months it returned 19.7% with Sharpe 1.83 and a 7.8% max drawdown.
+
+## Pre-registered: beta cap (written before any real-data run)
+
+**Why.** The stress run (`scripts/stress.py`, real data to the cutoff) found the book at 2026-08-21 has a 252-day beta of 1.65 vs the S&P 500 (shrunk about 1.43). 26% of it is in one cluster (MU, RMBS, NVDA, WDC), and an S&P -10% day maps to about -16.5%. Plan v5's normal preset sets a beta band of 1.10-1.20, which was never built because the optimizer was cut.
+
+**Change.** `book.beta_max` 1.2, off by default (`book.beta_limit`). While the book's beta is above 1.2, the highest-beta holding is swapped for the best-scored name ranked within the exit band (30) whose beta is below 1.2, keeping the sector cap. Beta here is the shrunk beta (0.67 beta + 0.33, 252 days vs the S&P 500), cash counts as beta 0, and a missing beta counts as 1. The cap is the plan's number, not fitted.
+
+**Rule.** It is a risk limit, so it is judged as one, on 2018 to the cutoff (the holdout is spent): it ships if annual return is within 1 point of v1.3's AND max drawdown or volatility is lower. Run: `scripts/audit.py --only betacap`.

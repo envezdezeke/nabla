@@ -17,6 +17,8 @@ Tests (each is a full weekly backtest with the plan's costs and the no-trade ban
             pead (earnings-surprise factor weight 1), all4 (all four, informational only).
             Each gets a paired block-bootstrap p-value and Newey-West t on its gap vs base,
             and a deflated Sharpe over all variants tried.
+  betacap   base vs a cap of 1.2 on the book's shrunk beta (book.beta_limit), 2018 to the
+            cutoff (holdout spent), with crisis windows and the final book's beta
   holdout   base vs --candidate (default pead) on the six held-back months only. Run ONCE.
   ic        weekly rank IC of each factor and the composite vs next-week returns
             (all liquid names, so far more power than a 15-name book), Newey-West t
@@ -124,7 +126,7 @@ def ic_test(inp, sv, cfg, start, end) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start")
-    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov,returns,ic,holdout")
+    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov,returns,ic,holdout,betacap")
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--candidate", default="pead",
                     help="holdout: comma list of VARIANTS to apply together (run once, see docs/AUDIT.md)")
@@ -137,6 +139,8 @@ def main() -> None:
     days = data.trading_days(ds)
     end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30) - pd.DateOffset(months=bt["holdback_months"])
     start = pd.Timestamp(args.start or bt["start"])
+    if "betacap" in want:  # risk rule, judged on the full sample (docs/AUDIT.md)
+        end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)
     if "holdout" in want:  # the six held-back months, seen once by the pre-registered winner
         start = end + pd.Timedelta(days=1)
         end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)
@@ -156,14 +160,14 @@ def main() -> None:
         res = sim.run(inp.close, inp.volume, sv, strat, start, end, bt["cost_model"], bt["book_value"],
                       fund=inp.fund, splits=inp.splits, liquidity=c["liquidity"],
                       cost_cfg=kw.pop("cost_cfg", c.get("costs")),
-                      no_trade_band=c["book"].get("no_trade_band"), **kw)
+                      no_trade_band=c["book"].get("no_trade_band"), market=spx, **kw)
         m = sim.metrics(res["daily"])
         m.update(capm(res["daily"]["ret"], spx))
         daily[name] = res["daily"]["ret"]
         return m
 
     out, daily = {}, {}
-    if ("base" in want or "returns" in want) and "holdout" not in want:
+    if ("base" in want or "returns" in want) and not want & {"holdout", "betacap"}:
         out["base"] = run("base", model.strategy(inp.groups, cfg, wf))
     if "returns" in want:
         variants = dict(VARIANTS)
@@ -181,6 +185,37 @@ def main() -> None:
                 b = out["base"]
                 out[k]["passes_1_2"] = bool(out[k]["ann_return"] - b["ann_return"] >= 0.01
                                              and out[k]["max_drawdown"] - b["max_drawdown"] <= 0.05)
+    if "betacap" in want:
+        from stress import CRISES, window_ret
+        res_all = {}
+        for name, c in {"base": cfg, "beta_cap_1.2": with_change(cfg, {"book": {"beta_max": 1.2}})}.items():
+            print(f"\n== {name}", flush=True)
+            res = sim.run(inp.close, inp.volume, sv, model.strategy(inp.groups, c, wf), start, end, bt["cost_model"],
+                          bt["book_value"], fund=inp.fund, splits=inp.splits, liquidity=c["liquidity"],
+                          cost_cfg=c.get("costs"), no_trade_band=c["book"].get("no_trade_band"), market=spx)
+            m = sim.metrics(res["daily"])
+            m.update(capm(res["daily"]["ret"], spx))
+            r = res["daily"]["ret"]
+            for k, (a, b) in CRISES.items():
+                if pd.Timestamp(b) <= end:
+                    m[k] = window_ret(r, a, b)
+            fw = res["final_weights"]
+            hist = inp.close.pct_change(fill_method=None).iloc[-252:]
+            mk = spx.reindex(hist.index)
+            betas = hist[fw.index].apply(lambda x: capm(x, mk)["beta"])
+            m["final_book_beta_raw"] = float((fw * betas).sum())
+            m["final_book"] = ", ".join(fw.sort_values(ascending=False).index)
+            out[name], res_all[name] = m, res
+        b, v = out["base"], out["beta_cap_1.2"]
+        ok = v["ann_return"] >= b["ann_return"] - 0.01 and (v["max_drawdown"] < b["max_drawdown"] or v["ann_vol"] < b["ann_vol"])
+        rows = ["ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann", "turnover_per_year",
+                "roll21_p05", "final_book_beta_raw", *[k for k in CRISES if k in b]]
+        print(pd.DataFrame({k: out[k] for k in ("base", "beta_cap_1.2")}).loc[rows].astype(float).round(3).to_string())
+        print("final books:\n  base:", b["final_book"], "\n  cap: ", v["final_book"])
+        print("\nbeta cap " + ("PASSES" if ok else "FAILS") + " the pre-registered rule "
+              "(return within 1 pt/yr of base AND lower max drawdown or lower volatility)")
+        out = {k: {kk: vv for kk, vv in d.items()} for k, d in out.items()}
+        want.discard("base")
     if "holdout" in want:
         change: dict = {}
         for v in args.candidate.split(","):

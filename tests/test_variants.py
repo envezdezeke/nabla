@@ -74,3 +74,19 @@ def test_rebalance_offsets_and_frequency():
     every2 = sim.rebalance_days(dates, 0, 2)
     assert set(every2) <= set(base) and abs(len(every2) - len(base) / 2) <= 1
     assert set(sim.rebalance_days(dates, 0, 4)) <= set(base) | {0}
+
+
+def test_beta_limit_swaps_highest_beta_for_best_ranked_low_beta():
+    from nabla import book
+    names = [f"N{i}" for i in range(8)]
+    score = pd.Series(np.linspace(1, 0, 8), index=names)
+    beta = pd.Series([2.0, 1.0, 1.0, 1.0, 2.5, 0.8, 0.7, 1.5], index=names)
+    groups = pd.Series("all", index=names)
+    weigh = lambda p: pd.Series(1 / len(p), index=p)  # noqa: E731
+    w = book.beta_limit(weigh(names[:4]), score, groups, beta, weigh, 1.2, pool_size=8, n=4)
+    assert set(w.index) == {"N1", "N2", "N3", "N5"}  # N0 (beta 2) out, N5 (best low-beta) in
+    assert (w * beta[w.index]).sum() <= 1.2
+    same = book.beta_limit(weigh(names[1:4]), score, groups, beta, weigh, 1.2, pool_size=8, n=4)
+    assert list(same.index) == names[1:4]
+    stressed = book.beta_limit(weigh(names[:4]), score, groups, beta, weigh, 1.2, invested=0.75, pool_size=8, n=4)
+    assert list(stressed.index) == names[:4]  # 1.25 x 0.75 is under the cap: no swap

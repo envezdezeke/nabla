@@ -15,15 +15,21 @@ FACTORS = ["momentum", "guidance_velocity", "quality", "value", "vol_premium", "
 BETA_SHRINK = 0.67  # beta_shrunk = 0.67 * beta + 0.33 (plan v5 step 4)
 
 
-def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
-    """Per-ticker features from the last year of prices (rows end at the decision date)."""
+def price_features(close: pd.DataFrame, volume: pd.DataFrame, market: pd.Series | None = None) -> pd.DataFrame:
+    """Per-ticker features from the last year of prices (rows end at the decision date).
+    `market`: daily S&P 500 returns (any span); beta is measured against it when
+    given, else against the equal-weight average of the universe."""
     rets = close.pct_change(fill_method=None)
     dv = close * volume
     last = close.iloc[-1]
-    # beta vs the equal-weight average of the universe over the window (~252 days).
-    # SPX is not in the price panel; for ranking names the two betas agree closely.
+    # beta over the window (~252 days) vs the S&P 500 when given, else vs the
+    # equal-weight universe (for ranking names the two agree closely)
     r = rets.iloc[1:]
     mkt = r.mean(axis=1)
+    if market is not None:
+        m = market.reindex(r.index)
+        if m.notna().mean() > 0.9:
+            mkt = m.fillna(0.0)
     rc = r.sub(r.mean())
     mc = mkt - mkt.mean()
     beta = rc.mul(mc, axis=0).sum() / (mc ** 2).sum() if (mc ** 2).sum() > 0 else np.nan
@@ -43,13 +49,14 @@ def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
 
 
 def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame,
-                 fund: pd.DataFrame | None = None, splits: pd.DataFrame | None = None) -> pd.DataFrame:
+                 fund: pd.DataFrame | None = None, splits: pd.DataFrame | None = None,
+                 market: pd.Series | None = None) -> pd.DataFrame:
     """All v1 factors plus the inputs the book needs (liquidity, earnings clock).
 
     `fund` is `fundamentals.prepare(...)` output; quality and value then come from
     filings knowable by 16:00 on the last date in `close`. Without it, quality is
     neutral and value falls back to the state vector's FCF gap."""
-    ft = price_features(close, volume)
+    ft = price_features(close, volume, market)
     sv = sv_day.drop_duplicates("ticker").set_index("ticker").reindex(ft.index)
 
     def col(name: str) -> pd.Series:

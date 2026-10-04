@@ -37,6 +37,33 @@ def select(score: pd.Series, groups: pd.Series, held: list[str], n: int = 15,
     return picks
 
 
+def beta_limit(w: pd.Series, score: pd.Series, groups: pd.Series, beta: pd.Series, weigh,
+               beta_max: float, invested: float = 1.0, pool_size: int = 30, sector_cap: float = 0.30,
+               n: int = 15) -> pd.Series:
+    """Plan v5's beta band, upper edge only. While the book's beta (shrunk betas,
+    cash counts as 0, so `invested` < 1 lowers it) is above beta_max, swap the
+    highest-beta holding for the best-scored name ranked within `pool_size` whose
+    beta is below beta_max, respecting the sector cap. Missing betas count as 1.
+    Stops when no such name is left; the book can stay above the cap."""
+    b = beta.reindex(score.index).fillna(1.0)
+    ranked = list(score.dropna().sort_values(ascending=False).index[:pool_size])
+    max_per_group = max(1, int(sector_cap * n + 1e-9))
+    picks = list(w.index)
+    for _ in range(len(picks)):
+        if float((w * b.reindex(w.index).fillna(1.0)).sum()) * invested <= beta_max + 1e-12:
+            break
+        out = max(picks, key=lambda t: b.get(t, 1.0))
+        rest = [t for t in picks if t != out]
+        count = pd.Series([groups.get(t, "other") for t in rest]).value_counts()
+        ok = [t for t in ranked if t not in picks and b[t] < beta_max
+              and (groups.get(t, "other") == "all" or count.get(groups.get(t, "other"), 0) < max_per_group)]
+        if not ok:
+            break
+        picks = rest + [ok[0]]
+        w = weigh(picks)
+    return w
+
+
 def weights(picks: list[str], days_to_report: pd.Series | None = None,
             max_name: float = 0.10, earnings_cap: float = 0.06,
             earnings_days: int = 30) -> pd.Series:

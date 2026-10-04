@@ -65,10 +65,10 @@ def cache_factor_tables() -> None:
     same table in every run here (sim.run looks it up through the module)."""
     raw, memo = factors.factor_table, {}
 
-    def cached(close, volume, sv_day, fund=None, splits=None):
-        key = (close.index[-1], len(close), hash(tuple(close.columns)), id(fund))
+    def cached(close, volume, sv_day, fund=None, splits=None, market=None):
+        key = (close.index[-1], len(close), hash(tuple(close.columns)), id(fund), id(market))
         if key not in memo:
-            memo[key] = raw(close, volume, sv_day, fund, splits)
+            memo[key] = raw(close, volume, sv_day, fund, splits, market=market)
         return memo[key]
     factors.factor_table = cached
 
@@ -197,7 +197,7 @@ def main() -> None:
                       sv, strat or model.strategy(inp.groups, c, wf), start, end, kw.pop("cost_model", bt["cost_model"]),
                       bt["book_value"], fund=inp.fund, splits=inp.splits, liquidity=c["liquidity"],
                       cost_cfg=kw.pop("cost_cfg", c.get("costs")),
-                      no_trade_band=kw.pop("no_trade_band", c["book"].get("no_trade_band")), **kw)
+                      no_trade_band=kw.pop("no_trade_band", c["book"].get("no_trade_band")), market=spx, **kw)
         m = sim.metrics(res["daily"])
         m.update(capm(res["daily"]["ret"], spx))
         return res, m
