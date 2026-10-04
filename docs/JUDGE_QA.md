@@ -3,16 +3,16 @@
 One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md`; replace each [pending] with the result once it lands.
 
 **One month is mostly luck. How is this skill?**
-It isn't provable in one month, and we don't claim it: what we claim is a process, made of signals with decades of published evidence, rules fixed before testing, and an eight-year backtest where it beat the equal-weight universe after costs (15.2% vs 11.5% a year). The random-book test, where 15 random stocks each week face the same rules, is our check that the scores add something: [pending].
+It isn't provable in one month, and we don't claim it: what we claim is a process, made of published signals, fixed rules and an eight-year weekly replay that beat the equal-weight universe and the S&P 500 after costs (17.6% vs 11.5% and 12.4% a year). It also beat all five random books (15 random liquid stocks under the same rules, 8% to 14% a year), so the scores add something, though alpha (+5.7% a year, t = 1.3) is not statistically significant.
 
 **How do you know there's no look-ahead?**
-Every decision uses data through the prior close only, fundamentals count from the day after their filing date (60 days after period end when no filing matches), and the decision function takes the cutoff time as its input and never reads today's date. In our five-bucket factor test no factor was suspiciously good (every t-stat below 1.5), and the one-day-delay test is [pending]; the backtest calls the same function the judges replay.
+Every decision uses data through the prior close only, fundamentals count from the day after their filing date (60 days after period end when no filing matches), and the decision function takes the cutoff time as its input and never reads today's date. No factor was suspiciously good in our five-bucket test (every t-stat below 1.5), and when we feed the model data one day late, return falls (17.6% to 13.7% a year) rather than rising.
 
 **Why not machine learning or RL?**
 We have about 100 independent months since 2018, and even simple factors can't be told apart from zero on that sample, so a flexible model would learn noise and look great only in the backtest. Fixed rules are transparent, give the same answer on every replay, and can't drift during the test.
 
 **Why beta 1.15 instead of maximizing return?**
-The score rewards total return, so we stay above the market's beta of 1, but past about 1.2 the extra return is just leveraged S&P exposure, and in a one-month test that mostly makes the bad month worse (our worst 21 days in the 2023-2026 run were already -20%). The band applies once the optimizer is in; v1 without it runs higher, and we record that choice in the audit [update if we decide to accept the higher beta].
+We measured it rather than forcing it: the book's beta is 1.11 in normal markets, inside the plan's 1.10 to 1.20 band, and 0.96 over the whole period because the cash dial cuts exposure in stress. Above about 1.2 the extra return is just leveraged S&P exposure, which in a one-month test mostly makes the bad month worse.
 
 **Why cash instead of puts?**
 SPY and its options aren't in our universe, so there is no index put to buy, and puts on single names would cost premium every month in a test scored mostly on return. Cash costs nothing, cuts exposure by exactly the amount we choose, and is an explicit line in every portfolio.
