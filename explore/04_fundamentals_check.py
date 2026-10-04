@@ -53,3 +53,32 @@ print("6) coverage:", qv.notna().mean().round(3).to_dict())
 print(qv.describe(percentiles=[.01, .5, .99]).round(4).to_string())
 print("\n   top 10 quality:\n", qv["quality"].nlargest(10).round(4).to_string())
 print("\n   top 10 value:\n", qv["value"].nlargest(10).round(4).to_string())
+
+# ---- 7) sanity check on stocks you know, on a past date -------------------------
+from nabla import combine  # noqa: E402
+
+PAST = pd.Timestamp("2023-06-30")
+KNOWN = ["AAPL", "MSFT", "JPM", "BAC", "XOM", "CVX"]
+px = data.load_prices(ds, PAST - pd.Timedelta(days=10), PAST, list(f["ticker"].unique()))
+price = data.to_wide(px, "close").iloc[-1]
+qv, notes = F.quality_value(f, price, PAST + pd.Timedelta(hours=16), data.load_splits(ds))
+groups = data.sector_groups(ds, list(price.index))
+t = F.ttm(f, PAST + pd.Timedelta(hours=16)).reindex(price.index)
+show = pd.DataFrame({
+    "group": groups, "price": price,
+    "ttm_eps": t.get("eps"), "quality": qv["quality"], "value": qv["value"],
+    # what the composite actually sees: sector z-scores, clipped at +/-3
+    "quality_z": combine.zscore(qv["quality"], groups), "value_z": combine.zscore(qv["value"], groups),
+    "quality_pct": qv["quality"].rank(pct=True), "value_pct": qv["value"].rank(pct=True),
+})
+print(f"\n7) known names on {PAST.date()} ({notes}):")
+print("   expect AAPL/MSFT high quality; banks and energy cheap (high value pct)")
+print(show.reindex(KNOWN).round(3).to_string())
+losers = show[show["ttm_eps"] < 0]
+print(f"\n   money-losing names: {len(losers)} of {show['ttm_eps'].notna().sum()} with TTM EPS")
+print("   their value_z (should sit at the bottom):", losers["value_z"].describe().round(2).to_dict())
+print("   five most negative earnings yields:\n", show.nsmallest(5, "value")[["group", "price", "ttm_eps", "value"]]
+      .round(3).to_string())
+print("   absurd values (|earnings yield| > 1 or quality outside [-1, 2]):")
+print(show[(show["value"].abs() > 1) | (show["quality"] < -1) | (show["quality"] > 2)]
+      [["group", "price", "ttm_eps", "quality", "value"]].round(3).head(15).to_string())
