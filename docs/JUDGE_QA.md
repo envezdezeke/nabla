@@ -1,6 +1,6 @@
 # Judge questions: short answers
 
-One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md`; replace each [pending] with the result once it lands.
+One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md` (v1.2, 2018 to Feb 2026, costs included).
 
 **One month is mostly luck. How is this skill?**
 It isn't provable in one month, and we don't claim it: what we claim is a process, made of published signals, fixed rules and an eight-year weekly replay that beat the equal-weight universe and the S&P 500 after costs (17.6% vs 11.5% and 12.4% a year). It also beat all 20 random books (15 random liquid stocks under the same rules: median 10% a year, best 15%), so the scores add return, though alpha (+5.7% a year, t = 1.3) is not statistically significant and one year, 2024, carries much of the edge.
@@ -25,3 +25,12 @@ Momentum: removing it from the full backtest cut return from 13.7% to 7.3% a yea
 
 **What would you do with more time?**
 Get data that includes delisted companies to remove survivorship bias, and test on a longer history with more market crashes. Also: refit the stock clusters each year, measure real trading costs instead of modeling them, and run the full model through the held-back months several times with different start dates.
+
+**Isn't one good year doing all the work?**
+2024 (+50%) carries a lot of it, and we lagged badly in 2023 (+13% vs +24% for the S&P). But the model beat the S&P in 7 of 9 years and stays ahead of both benchmarks from every start year, 2018 to 2022.
+
+**Does trading at the next open hurt you?**
+No. Rerun over eight years with next-open fills, the model earns 19.0% a year against 17.6% with close fills, because the new book is in place for the whole trading day.
+
+**How sensitive is it to your choices?**
+Double trading costs: 16.6% a year. Data one day late: 13.7%. Regrouping the stocks every year: 14.2%. Each still beats the S&P's 12.4%.

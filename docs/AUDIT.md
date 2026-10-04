@@ -2,7 +2,7 @@
 
 How the model decides, why each rule exists, and what we know it cannot prove. Every threshold below was fixed before testing; changes made after a test are logged next to that test.
 
-**Status (current build).** The shipped model (rungs 1 and 3 of the plan's ladder) is built and backtested: equal-weight top 15 by the factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1.2`: four factors, after the volatility premium was dropped on the drop-one-factor test, plus the stress cash dial; the panic rule was tested and rejected). The optimizer is not built. Sections marked [pending] are filled in as those layers land.
+**Status (current build).** The shipped model (rungs 1 and 3 of the plan's ladder) is built and backtested: equal-weight top 15 by the factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1.2`: four factors, after the volatility premium was dropped on the drop-one-factor test, plus the stress cash dial; the panic rule was tested and rejected). The optimizer is not built.
 
 ## Contents
 1. Strategy in plain English
