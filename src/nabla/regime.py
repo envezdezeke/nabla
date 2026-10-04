@@ -93,4 +93,68 @@ def flags_at(weekly: pd.DataFrame | None, when) -> dict:
     w = weekly[weekly.index <= pd.Timestamp(when)]
     if w.empty:
         return {"stress": False, "panic": False}
-    return {"stress": bool(w["stress"].iloc[-1]), "panic": bool(w["panic"].iloc[-1])}
+    out = {"stress": bool(w["stress"].iloc[-1]), "panic": bool(w["panic"].iloc[-1])}
+    if "p_stress" in w and pd.notna(w["p_stress"].iloc[-1]):
+        out["p_stress"] = round(float(w["p_stress"].iloc[-1]), 4)
+    return out
+
+
+METHODS = ("rule", "hmm", "hmm_trend", "rule_or_hmm")
+HMM_DEFAULTS = {"on": 0.8, "off": 0.5, "off_after": 2, "trend_days": 50}
+
+
+def _hmm_flags(weekly: pd.DataFrame, p_col: str, extra_on: pd.Series | None, h: dict) -> pd.Series:
+    """Stress from P(stress): on at a weekly check when p >= on (and extra_on, if
+    given); off after `off_after` straight checks with p < off."""
+    state, calm, out = False, 0, []
+    for d, p in weekly[p_col].items():
+        on = bool(p >= h["on"]) and (extra_on is None or bool(extra_on.get(d, False)))
+        if on:
+            state, calm = True, 0
+        elif state:
+            calm = calm + 1 if p < h["off"] else 0
+            if calm >= h["off_after"]:
+                state, calm = False, 0
+        out.append(state)
+    return pd.Series(out, index=weekly.index)
+
+
+def weekly_table(spx: pd.Series, regime_cfg: dict | None = None, params: dict | None = None,
+                 funding: pd.Series | None = None) -> pd.DataFrame:
+    """Weekly stress/panic flags for the configured method, plus p_stress.
+
+    regime_cfg["method"]: "rule" (v1.2: below 200-day average and high vol),
+    "hmm" (P(stress) only), "hmm_trend" (P(stress) and below the 50-day average),
+    "rule_or_hmm" (either). Panic always comes from the rule. `params` are the
+    yearly HMM fits (config/markov.json); without them the HMM is fitted
+    walk-forward on the spot from `spx`.
+    """
+    from . import markov
+
+    cfg = regime_cfg or {}
+    method = cfg.get("method", "rule")
+    if method not in METHODS:
+        raise ValueError(f"regime method {method!r} not in {METHODS}")
+    w = weekly_flags(spx, funding)
+    spx = spx.dropna().sort_index()
+    if params is None:
+        params = markov.load()  # frozen fits; p_stress is reported even under "rule"
+    if params is None and method != "rule":
+        params = markov.fit_yearly(spx, sorted({d.year for d in spx.index}))
+    if params:
+        p = markov.p_stress(spx, params)
+        w["p_stress"] = p.reindex(w.index, method="ffill")
+    else:
+        w["p_stress"] = np.nan
+    w["stress_rule"] = w["stress"]
+    if method == "rule":
+        return w
+    h = {**HMM_DEFAULTS, **cfg.get("hmm", {})}
+    below_trend = (spx < spx.rolling(h["trend_days"]).mean()).reindex(w.index)
+    pw = w["p_stress"].fillna(0.0)
+    tmp = w.assign(_p=pw)
+    hmm_only = _hmm_flags(tmp, "_p", None, h)
+    hmm_trend = _hmm_flags(tmp, "_p", below_trend, h)
+    w["stress"] = {"hmm": hmm_only, "hmm_trend": hmm_trend,
+                   "rule_or_hmm": w["stress_rule"] | hmm_trend}[method]
+    return w

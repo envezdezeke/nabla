@@ -63,7 +63,7 @@ def capm(port: pd.Series, mkt: pd.Series) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start")
-    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder")
+    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov")
     ap.add_argument("--seeds", type=int, default=5)
     args = ap.parse_args()
     want = set((args.only or "base,random,delay,cost2x,drop").split(","))
@@ -81,7 +81,7 @@ def main() -> None:
     sv = data.load_state_vector(ds, data.window_start(start.date(), 10), end.date(), sig)
     spx_px = data.spx_close(ds)
     spx = spx_px.pct_change()
-    wf = regime.weekly_flags(spx_px.loc[:end])
+    wf = regime.weekly_table(spx_px.loc[:end], cfg.get("regime"))
 
     def run(name, strat, **kw):
         print(f"\n== {name}", flush=True)
@@ -97,6 +97,16 @@ def main() -> None:
     out = {}
     if "base" in want:
         out["base"] = run("base", model.strategy(inp.groups, cfg, wf))
+    if "markov" in want:  # stress method comparison, 25% cash dial in every row
+        years_n = max((end - start).days / 365.25, 1e-9)
+        for m in ("rule", "hmm_trend", "hmm"):
+            c = json.loads(json.dumps(cfg))
+            c["regime"] = {**c.get("regime", {}), "method": m, "stress_cash": c["regime"].get("stress_cash") or 0.25}
+            wm = regime.weekly_table(spx_px.loc[:end], c["regime"])
+            out[f"regime_{m}"] = run(f"regime {m}", model.strategy(inp.groups, c, wm), cfg=c)
+            s = wm.loc[start:end, "stress"].astype(int)
+            out[f"regime_{m}"]["switches_per_year"] = float(s.diff().abs().sum() / years_n)
+            out[f"regime_{m}"]["weeks_flagged"] = float(s.mean())
     if "ladder" in want:  # plan v5 ablation rungs 1-3, each must beat the one before
         for name, rg in {"rung1_v1": {"panic_momentum": False, "stress_cash": 0.0},
                          "rung2_panic": {"panic_momentum": True, "stress_cash": 0.0},
@@ -123,7 +133,7 @@ def main() -> None:
             c["factor_weights"][f] = 0.0
             out[f"drop_{f}"] = run(f"drop {f}", model.strategy(inp.groups, c, wf), cfg=c)
 
-    cols = ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
+    cols = (["switches_per_year", "weeks_flagged"] if "markov" in want else []) + ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
             "alpha_t", "turnover_per_year", "cost_total", "roll21_median", "roll21_p05"]
     table = pd.DataFrame(out).T[cols]
     rnd = table[table.index.str.startswith("random")]

@@ -52,7 +52,7 @@ def main() -> None:
     results, v1_days = {}, None
     (ROOT / "artifacts").mkdir(exist_ok=True)
     from nabla import regime
-    wf = regime.weekly_flags(data.spx_close(ds).loc[:end])
+    wf = regime.weekly_table(data.spx_close(ds).loc[:end], cfg.get("regime"))
     for name, strat in {"v1": model.strategy(inp.groups, cfg, wf),
                         "ew_liquid": model.equal_weight_liquid(cfg)}.items():
         res = sim.run(inp.close, inp.volume, sv, strat, start, end, cost_model, bt["book_value"],

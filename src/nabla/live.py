@@ -25,7 +25,7 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8, asof=None) -> dict:
     sv_by = {d: g for d, g in sv.groupby("date")}
 
     from . import regime
-    wf = regime.weekly_flags(data.spx_close(ds).loc[:pd.Timestamp(asof)])
+    wf = regime.weekly_table(data.spx_close(ds).loc[:pd.Timestamp(asof)], cfg.get("regime"))
 
     held: list[str] = []
     prev = pd.Series(dtype=float)

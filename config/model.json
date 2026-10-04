@@ -41,6 +41,13 @@
   "regime": {
     "panic_momentum": false,
     "stress_cash": 0.25,
-    "note": "rung 2 = panic_momentum true; rung 3 = stress_cash 0.25. Flags use SPX only (funding stress left out so the backtest and the live book use identical inputs)."
+    "note": "rung 2 = panic_momentum true; rung 3 = stress_cash 0.25. Flags use SPX only (funding stress left out so the backtest and the live book use identical inputs). method: rule (v1.2) | hmm | hmm_trend | rule_or_hmm; HMM parameters frozen in config/markov.json (scripts/fit_markov.py).",
+    "method": "rule",
+    "hmm": {
+      "on": 0.8,
+      "off": 0.5,
+      "off_after": 2,
+      "trend_days": 50
+    }
   }
 }
