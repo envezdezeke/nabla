@@ -92,3 +92,28 @@ The plan targets a beta of 1.10 to 1.20 in normal markets; the preliminary run s
 | No-trade band | How much turnover and cost does it remove? | [pending] |
 
 Note: this run may predate the latest quality and value fixes (gross margin in quality, split guard off, money-losers at a 0% earnings yield); rerun before the final numbers.
+
+## Factor direction test (five buckets)
+
+Run of `explore/05_factor_buckets.py` on the real data: 96 month-ends from 2018-01 to 2026-01, liquid names only (about 460 per date), next 21 trading days of return starting the day after the signal. The last six months (to 2026-08) stay held back for the go/no-go.
+
+| Factor | Bucket 1 (low) | Bucket 5 (high) | 5 minus 1 per month | t-stat | Mean IC | Years 5 > 1 | Verdict |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Momentum 12-1 | 1.11% | 1.40% | +0.29% | 0.58 | +0.008 | 4 of 8 | Right sign, weak; positive 2023 to 2025 only |
+| Guidance velocity | 1.23% | 1.36% | +0.13% | 0.55 | +0.009 | 4 of 8 | Right sign, weak; positive 2023 to 2025 only |
+| Quality | 1.50% | 0.97% | -0.52% | -1.43 | +0.013 | 2 of 8 | Backwards on buckets (2020 and 2025 junk rallies), slightly positive IC: mixed |
+| Value | 1.39% | 0.98% | -0.41% | -1.18 | -0.005 | 2 of 8 | Backwards; worked only in 2021 and 2022 |
+| Volatility premium | 1.11% | 0.92% | -0.19% | -0.85 | -0.007 | 3 of 8 | Backwards, small |
+| Composite (all five) | 1.23% | 1.02% | -0.21% | -0.59 | +0.005 | 3 of 8 | Backwards: the three backward factors cancel the two right ones |
+
+What it means:
+- **No factor is distinguishable from zero.** Every |t| is below 1.5; with 96 months, a real 0.3% monthly edge would need about 8 years more data to show. No factor is "too good", so there is no sign of a look-ahead leak.
+- **Momentum and guidance velocity point the right way** and have worked in each of the last three years. Quality, value and the volatility premium point the wrong way over this period.
+- **Survivorship likely tilts quality and value backwards here.** The data holds only today's listed companies, so the weak, unprofitable firms in the history are the ones that survived and recovered; the ones that failed are missing. The test month has no such bias, so the backtest understates quality and value somewhat. It cannot explain the 2020 result, which was a real junk rally.
+- **The five-factor composite as written does not beat its own bottom bucket.** Shipping it unchanged would mean shipping a score that tested backwards.
+
+Recommendation to Ezekiel (decision is his, not made in code yet):
+1. Composite = momentum + guidance velocity, equal weights (the two factors with the right sign). Keep the panic rule on momentum.
+2. Drop value and the volatility premium from the score.
+3. Quality: drop from the score, or keep at half weight as a tiebreak only if the backtest after costs improves; do not tune further.
+4. This choice is made on the same 2018 to 2026 sample it will be backtested on, so the backtest will flatter it. The six held-back months are the honest check: rerun this script with `--include-holdback` only at the go/no-go.
