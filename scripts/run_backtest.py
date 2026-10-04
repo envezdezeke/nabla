@@ -29,6 +29,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--cost-model", choices=["plan", "flat"])
     ap.add_argument("--include-holdback", action="store_true")
+    ap.add_argument("--start", help="override config start, e.g. 2023-01-01 for a quick run")
     ap.add_argument("--out", default=str(ROOT / "artifacts" / "backtest_v1.json"))
     args = ap.parse_args()
 
@@ -39,7 +40,7 @@ def main() -> None:
     days = data.trading_days(ds)
     cutoff = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)  # SDK sealed holdout
     end = cutoff if args.include_holdback else cutoff - pd.DateOffset(months=bt["holdback_months"])
-    start = pd.Timestamp(bt["start"])
+    start = pd.Timestamp(args.start or bt["start"])
     print(f"backtest {start.date()} -> {end.date()} (holdout starts {cutoff.date()}, cost model {cost_model})")
 
     inp = pipeline.load(ds, start.date(), end.date())

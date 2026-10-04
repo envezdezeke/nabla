@@ -124,3 +124,20 @@ def test_cash_sleeve():
     ft = pd.DataFrame({"adv20": [1e8, 1e8], "price": [10.0, 10.0], "momentum": [0.1, 0.1],
                        "amihud": [0.01, 0.01]}, index=["A", "B"])
     assert costs.trade_cost(pd.Series({"CASHHOLDING": 0.5}), ft, 1e6) == 0.0
+
+
+def test_year_cache_reuses_downloads(tmp_path, monkeypatch):
+    monkeypatch.setattr(data, "CACHE", tmp_path)
+    calls = []
+
+    def fetch(a, b):
+        calls.append((a, b))
+        d = pd.bdate_range(a, b)
+        return pd.DataFrame({"ticker": "A", "date": d, "close": 1.0, "volume": 1.0})
+
+    from datetime import date
+    x = data._cached_years("prices", date(2022, 6, 1), date(2023, 3, 31), fetch)
+    assert x["date"].min() >= pd.Timestamp("2022-06-01") and x["date"].max() <= pd.Timestamp("2023-03-31")
+    n = len(calls)
+    data._cached_years("prices", date(2022, 6, 1), date(2023, 3, 31), fetch)
+    assert len(calls) == n  # second run reads disk only

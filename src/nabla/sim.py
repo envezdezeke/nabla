@@ -68,6 +68,8 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
             cost = trade_cost(dw, ft, book_value * value, cost_model, liquidity=liquidity, cost_cfg=cost_cfg)
             turn = float(dw.abs().sum())
             w = target[target > 0]
+            if len(books) % 50 == 0:
+                print(f"  rebalance {len(books)}/{len(rebal)} ({dates[i].date()})", flush=True)
             books.append({"date": dates[i], "signal_date": sig, "names": len(w),
                           "turnover": turn, "cost": cost})
         port = r - cost

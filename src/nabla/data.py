@@ -7,6 +7,7 @@ nothing after the decision date is read.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from datetime import date, timedelta
 
 import numpy as np
@@ -29,14 +30,43 @@ def last_trading_day(ds) -> date:
     return trading_days(ds)[-1]
 
 
+CACHE = Path(__file__).resolve().parents[2] / "artifacts" / "cache"
+
+
+def _cached_years(name: str, start: date, end: date, fetch) -> pd.DataFrame:
+    """Fetch a panel one calendar year at a time, keeping each year on disk.
+
+    The remote server serves one file per trading day, so a multi-year backtest
+    downloads thousands of files. A cached year is reused if it reaches the
+    requested end (or the year is over); otherwise it is fetched again.
+    Delete artifacts/cache to force a fresh download.
+    """
+    CACHE.mkdir(parents=True, exist_ok=True)
+    parts = []
+    for y in range(start.year, end.year + 1):
+        a, b = max(start, date(y, 1, 1)), min(end, date(y, 12, 31))
+        f = CACHE / f"{name}_{y}.parquet"
+        df = pd.read_parquet(f) if f.exists() else None
+        if df is None or (len(df) and df["date"].max() < pd.Timestamp(b) and b.year == end.year
+                          and df["date"].min() <= pd.Timestamp(a)):
+            print(f"  downloading {name} {y} ...", flush=True)
+            df = fetch(date(y, 1, 1), min(end, date(y, 12, 31)) if y == end.year else date(y, 12, 31))
+            df.to_parquet(f)
+        parts.append(df[(df["date"] >= pd.Timestamp(a)) & (df["date"] <= pd.Timestamp(b))])
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+
+
 def load_prices(ds, start: date, end: date, tickers: list[str] | None = None) -> pd.DataFrame:
-    """Long frame ticker, date, close, volume for [start, end]."""
-    lf = ds.get("stocks_daily", start=str(start), end=str(end), limit=BIG, lazy=True)
+    """Long frame ticker, date, close, volume for [start, end] (cached by year)."""
+    def fetch(a, b):
+        lf = ds.get("stocks_daily", start=str(a), end=str(b), limit=BIG, lazy=True)
+        df = lf.select(["ticker", "date", "close", "volume"]).collect().to_pandas()
+        df["date"] = pd.to_datetime(df["date"])
+        return df
+    df = _cached_years("prices", start, end, fetch) if getattr(ds, "base", None) else fetch(start, end)
     if tickers is not None:
-        lf = lf.filter(pl.col("ticker").is_in(tickers))
-    df = lf.select(["ticker", "date", "close", "volume"]).collect().to_pandas()
-    df["date"] = pd.to_datetime(df["date"])
-    return df
+        df = df[df["ticker"].isin(tickers)]
+    return df.reset_index(drop=True)
 
 
 def to_wide(long: pd.DataFrame, col: str) -> pd.DataFrame:
@@ -103,14 +133,17 @@ SV_COLS = ["guidance_range_velocity", "atm_iv", "log_fv_gap", "days_to_next_repo
 
 def load_state_vector(ds, start: date, end: date, dates: list | None = None) -> pd.DataFrame:
     """State-vector columns used by v1, optionally only on the given dates."""
-    lf = ds.state_vector(start=str(start), end=str(end), lazy=True)
-    have = lf.collect_schema().names()
-    cols = ["ticker", "date"] + [c for c in SV_COLS if c in have]
+    def fetch(a, b):
+        lf = ds.state_vector(start=str(a), end=str(b), lazy=True)
+        have = lf.collect_schema().names()
+        cols = ["ticker", "date"] + [c for c in SV_COLS if c in have]
+        df = lf.select(cols).collect().to_pandas()
+        df["date"] = pd.to_datetime(df["date"])
+        return df
+    df = _cached_years("state_vector", start, end, fetch) if getattr(ds, "base", None) else fetch(start, end)
     if dates is not None:
-        lf = lf.filter(pl.col("date").cast(pl.Date).is_in([pd.Timestamp(d).date() for d in dates]))
-    df = lf.select(cols).collect().to_pandas()
-    df["date"] = pd.to_datetime(df["date"])
-    return df
+        df = df[df["date"].isin(pd.to_datetime(list(dates)))]
+    return df.reset_index(drop=True)
 
 
 # SIC two-digit code -> about 10 sector groups
