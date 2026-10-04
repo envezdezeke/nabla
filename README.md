@@ -2,7 +2,7 @@
 
 RowdyHacks (UTSA Investment Society) finance track. A long-only, weekly-rebalanced
 15-stock factor book served as a FastAPI app on the starter repo's `statevector` dataset.
-Design: `docs/nabla_plan_v5.pdf`. Shipped model: **v1.3** (`config/model.json`, groups frozen in `config/clusters.json`).
+Design: `docs/nabla_plan_v5.pdf`. Shipped model: **v1.4** (v1.3 plus a beta cap; `config/model.json`, groups frozen in `config/clusters.json`).
 
 ## v1.3 in one paragraph
 
@@ -37,6 +37,11 @@ uvicorn app.main:app --port 8000
 python <starter repo>/launchpad/rubric/check.py --base-url http://localhost:8000
 pytest -q                             # runs offline on a synthetic dataset
 ```
+
+Without a working token the API still starts: `/health`, `/portfolio/holdings`, `/model` and
+`/decide` serve the frozen book (`config/book.json`, records marked `fallback`), and `/backtest`,
+`/screen` and `/asof` read the yearly cache in `artifacts/cache` (real data downloaded earlier;
+`/asof` then returns cached state-vector rows dated on or before `on`). `/health` reports which mode is on.
 
 ## Layout
 
