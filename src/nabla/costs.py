@@ -46,7 +46,7 @@ def impact_coef(ft: pd.DataFrame, book_value: float, cfg: dict | None = None) ->
 def trade_cost(dw: pd.Series, ft: pd.DataFrame, book_value: float,
                liquidity: dict | None = None, cfg: dict | None = None) -> float:
     """Total cost of the weight changes dw, as a fraction of the book."""
-    dw = dw[dw.abs() > 0]
+    dw = dw[(dw.abs() > 0) & (dw.index != "CASHHOLDING")]  # cash trades free
     if dw.empty:
         return 0.0
     h = half_spread(ft, liquidity, cfg).reindex(dw.index).fillna((cfg or DEFAULTS)["half_spread_bps"][2] / 1e4)

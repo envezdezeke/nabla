@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from . import data, factors, model, pipeline, sim
+from . import book, data, factors, model, pipeline, sim
 
 
 def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
@@ -31,7 +31,7 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
         w, detail = model.decide(ft, inp.groups, held, cfg)
         held = list(w.index)
 
-    w = w.round(6)
+    w = book.with_cash(w).round(6)
     if len(w):
         w[w.idxmax()] += round(1.0 - w.sum(), 6)
     cols = ["score", "group", *factors.FACTORS, "adv20", "days_to_next_report"]

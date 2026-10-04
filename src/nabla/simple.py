@@ -46,7 +46,7 @@ def trading_cost(current: Mapping[str, float] | pd.Series, target: Mapping[str, 
     cur, tgt = pd.Series(current, dtype=float), pd.Series(target, dtype=float)
     names = cur.index.union(tgt.index)
     dw = tgt.reindex(names, fill_value=0.0) - cur.reindex(names, fill_value=0.0)
-    dw = dw.drop(labels=[n for n in dw.index if n.upper() == "CASH"], errors="ignore")
+    dw = dw.drop(labels=[n for n in dw.index if n.upper() in ("CASH", "CASHHOLDING")], errors="ignore")
     ft = factors.price_features(close, volume)
     cfg = {"half_spread_bps": list(half_spread_bps), "impact_k": impact_k, "max_adv_pct": 0.01}
     return costs.trade_cost(dw, ft, book_value, cfg=cfg)

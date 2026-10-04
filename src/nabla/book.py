@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+CASH = "CASHHOLDING"  # the judges' cash sleeve: 0% return, no trading fees
+
 
 def select(score: pd.Series, groups: pd.Series, held: list[str], n: int = 15,
            exit_rank: int = 30, sector_cap: float = 0.30) -> list[str]:
@@ -58,3 +60,10 @@ def weights(picks: list[str], days_to_report: pd.Series | None = None,
             break
         w += excess * room / room.sum()
     return w / w.sum()
+
+
+def with_cash(w: pd.Series) -> pd.Series:
+    """Stock weights plus the CASHHOLDING residual, so the record sums to 1."""
+    w = w[w > 0]
+    cash = round(1.0 - float(w.sum()), 10)
+    return pd.concat([w, pd.Series({CASH: cash})]) if cash > 1e-9 else w

@@ -114,3 +114,13 @@ def test_return_clusters_recover_planted_groups():
     for g in range(3):
         assert lab[[c for c in cols if c.startswith(f"G{g}_")]].nunique() == 1
     assert lab.nunique() == 3
+
+
+def test_cash_sleeve():
+    w = book.with_cash(pd.Series({"A": 0.4, "B": 0.35}))
+    assert w["CASHHOLDING"] == pytest.approx(0.25) and w.sum() == pytest.approx(1.0)
+    assert "CASHHOLDING" not in book.with_cash(pd.Series({"A": 0.5, "B": 0.5}))
+    from nabla import costs
+    ft = pd.DataFrame({"adv20": [1e8, 1e8], "price": [10.0, 10.0], "momentum": [0.1, 0.1],
+                       "amihud": [0.01, 0.01]}, index=["A", "B"])
+    assert costs.trade_cost(pd.Series({"CASHHOLDING": 0.5}), ft, 1e6) == 0.0
