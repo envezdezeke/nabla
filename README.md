@@ -2,14 +2,15 @@
 
 RowdyHacks (UTSA Investment Society) finance track. A long-only, weekly-rebalanced
 15-stock factor book served as a FastAPI app on the starter repo's `statevector` dataset.
-Design: `docs/nabla_plan_v5.pdf`. Shipped model: **v1.2** (`config/model.json`).
+Design: `docs/nabla_plan_v5.pdf`. Shipped model: **v1.3** (`config/model.json`, groups frozen in `config/clusters.json`).
 
-## v1.2 in one paragraph
+## v1.3 in one paragraph
 
 Each week, on data through the prior close: filter to liquid names (20-day ADV >= $50M,
 price > $5, drop the least liquid 10% by Amihud); score four factors (12-1 momentum,
 guidance velocity, quality from filed margins and leverage, value = filed TTM EPS / price),
-winsorize, z-score within 10 return-co-movement clusters (the data has no SIC codes), clip
+winsorize, z-score within 10 groups of stocks that move together (the data has no SIC codes;
+groups are consensus clusters refit each January on prior prices only), clip
 at ±3, and sum with fixed equal weights where a missing factor counts as 0; hold the top 15
 equal-weight. Entry band top 15, exit band rank 30, 2-point no-trade band, max 4 names per
 cluster (30%), 10% per name, 6% for names with a projected filing inside 30 days. Fully
@@ -18,8 +19,8 @@ average and 21-day volatility above its 80th percentile). The volatility premium
 drop-one-factor test; the panic momentum rule was tested and rejected. No optimizer, no
 options.
 
-Backtest, weekly, Jan 2018 to Feb 2026, costs included: **17.6% a year** vs 12.4% for the
-S&P 500 and 11.5% for the equal-weight liquid universe; Sharpe 0.83; max drawdown 30%.
+Backtest, weekly, Jan 2018 to Feb 2026, costs included: **14.2% a year** vs 12.4% for the
+S&P 500 and 11.5% for the equal-weight liquid universe; Sharpe 0.70; max drawdown 33%.
 In-sample and survivorship-biased; every result, test and decision is in `docs/AUDIT.md`.
 
 ## Run
