@@ -2,7 +2,7 @@
 
 How the model decides, why each rule exists, and what we know it cannot prove. Every threshold below was fixed before testing; changes made after a test are logged next to that test.
 
-**Status (current build).** Rung 1 of the plan is built and backtested: equal-weight top 15 by the factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1.1`: four factors, after the volatility premium was dropped on the drop-one-factor test). The stress/panic flags are coded and tested (`src/nabla/regime.py`) but not yet wired into the book; the optimizer is not built. Sections marked [pending] are filled in as those layers land.
+**Status (current build).** The shipped model (rungs 1 and 3 of the plan's ladder) is built and backtested: equal-weight top 15 by the factor score, with the liquidity filter, caps, entry/exit bands and the 2-point no-trade band (`config/model.json`, version `v1.2`: four factors, after the volatility premium was dropped on the drop-one-factor test, plus the stress cash dial; the panic rule was tested and rejected). The optimizer is not built. Sections marked [pending] are filled in as those layers land.
 
 ## Contents
 1. Strategy in plain English
@@ -17,7 +17,7 @@ How the model decides, why each rule exists, and what we know it cannot prove. E
 
 ## 1. Strategy in plain English
 
-Every week we rank about 460 liquid US stocks on four simple, published ideas (five in the original design; one was dropped after testing) about which stocks tend to do better over the next month, and hold the 15 best-ranked, roughly equal weight. A stock enters only if it ranks in the top 15 and leaves only if it falls below 30th, so small rank wiggles do not cause trades. When the market is falling and stressed, the plan moves 25% of the book to cash and lowers its market exposure.
+Every week we rank about 460 liquid US stocks on four simple, published ideas (five in the original design; one was dropped after testing) about which stocks tend to do better over the next month, and hold the 15 best-ranked, roughly equal weight. A stock enters only if it ranks in the top 15 and leaves only if it falls below 30th, so small rank wiggles do not cause trades. When the market is falling and stressed, the book moves 25% to cash. Over 2018 to February 2026 this returned 17.6% a year after costs against 12.4% for the S&P 500, with a smaller worst drawdown (30% against 34%); section 9 has the full results and their caveats.
 
 Why this design: the judges score us on about 21 trading days after our data ends. Over one month, luck dominates any model, so we chose a few robust, well-documented signals and strict risk limits over a complex model that would fit the past and fail the month. Everything is a fixed rule: the same data always gives the same portfolio, which is exactly what the replay tests.
 
@@ -45,14 +45,14 @@ We set these ourselves (the organizers left limits to each team). The score is m
 
 | Rule | Value | Reason |
 | --- | --- | --- |
-| Number of stocks | 15 (12 to 18 once the optimizer ships) | Concentrated enough to stand out from diversified books; one bad pick is survivable. |
+| Number of stocks | 15 | Concentrated enough to stand out from diversified books; one bad pick is survivable. |
 | Max per name | 10% | One blowup (a 30% to 50% drop) costs the book about 3 to 5 points, not the month. |
 | Max per sector group | 30% | Stops the book from becoming a single-theme bet. The data has no SIC codes, so groups are 10 clusters of stocks that move together (see data checks). |
 | Beta band (normal) | 1.10 to 1.20 | Enough market exposure to chase total return, without becoming a pure leveraged-market bet. |
 | Names reporting earnings in the window | Max 6% each; no adding the week before a report | Earnings gaps of 10% to 20% are common, and most names report during the test window. |
 | Cash rule: normal | 0 to 5% cash | Cash earns nothing in a rising market, so we stay invested by default. |
-| Cash rule: stress | 25% cash, beta band 0.90 to 1.00 | Stress = S&P 500 below its 200-day average AND 21-day volatility or funding stress above its 80th percentile; the trend and stress signals must agree because volatility alone says nothing about direction. |
-| Panic rule | Momentum weight halved | Panic = S&P 500 down over 12 months AND volatility above its 80th percentile; momentum crashes cluster in rebounds after high-volatility declines (Daniel and Moskowitz, 2016). |
+| Cash rule: stress | 25% cash | Stress = S&P 500 below its 200-day average AND 21-day volatility above its 80th percentile; the trend and stress signals must agree because volatility alone says nothing about direction. |
+| Panic rule | Tested, not shipped | Halving momentum after high-volatility declines (Daniel and Moskowitz, 2016) cost about 3% a year on our data without reducing drawdown. |
 | Flag hysteresis | A flag turns off only after two calm weeks | Stops the book flipping in and out of cash on noise. |
 | Entry and exit bands | Enter only in the top 15; leave only below rank 30 | Small rank moves do not trigger trades, which limits churn and cost. |
 | No-trade band | Skip weight changes under 2 points | Tiny trades cost more than they add. |
@@ -69,16 +69,16 @@ The model reads two flags from the S&P 500 at each weekly decision, using only d
 
 | Flag | Turns on when | What it changes | Why |
 | --- | --- | --- | --- |
-| Stress | S&P 500 below its 200-day average AND (21-day volatility OR funding stress above its 80th percentile of all history so far) | 25% cash, beta band 0.90 to 1.00, highest-beta names swapped for lower-beta | Falling markets with high volatility are where large losses happen. Trend and stress must agree: volatility alone says nothing about direction, and a dip below the average alone is often noise. |
-| Panic | S&P 500 down over 12 months AND 21-day volatility above its 80th percentile | Momentum weight halved | Momentum crashes cluster in rebounds after high-volatility declines (Daniel and Moskowitz, 2016); 2009 and 2020 are the classic cases. |
+| Stress | S&P 500 below its 200-day average AND 21-day volatility above its 80th percentile of all history so far | 25% cash (shipped in v1.2) | Falling markets with high volatility are where large losses happen. Trend and stress must agree: volatility alone says nothing about direction, and a dip below the average alone is often noise. |
+| Panic (tested, not shipped) | S&P 500 down over 12 months AND 21-day volatility above its 80th percentile | Would halve the momentum weight | Momentum crashes cluster in rebounds after high-volatility declines (Daniel and Moskowitz, 2016). On our data it cost about 3% a year and did not reduce drawdown, so it is off (decision log). |
 
 A flag turns off only after two straight weeks with its condition false, so the book does not flip in and out of cash on noise. Percentiles use expanding history only, and the whole flag history is recomputed from data at each decision, so no stored state is needed.
 
 Cash is an explicit line in the portfolio (`CASHHOLDING`), so under stress a decision reads 75% stocks plus 25% cash, summing to 1.
 
-**Status:** flags coded and unit-tested; wiring into the book (rungs 2 and 3 of the ablation ladder) is in progress. Results: [pending].
+**Status:** the cash dial is live (v1.2). The stress flag was on in 18% of weeks from 2018 to 2026 (16 weeks in 2020, 44 in 2022). Against the same book without it: return 19.2% to 17.4% a year, Sharpe unchanged at 0.82, maximum drawdown 35% to 30%, beta 1.11 to 0.96 (decision log). Two deviations from the plan: funding stress is left out so the backtest and the live book use identical inputs, and the low-beta swap under stress is not built.
 
-**Why it matters for us:** in the full backtest, v1 lost 30% in 2022 against the S&P 500's 19%, a momentum-heavy book in a falling market. The stress flag should be on for much of 2022.
+**Why it matters for us:** in a calm month the dial changes nothing, so the judged book is the same as without it; it is insurance against a sell-off inside the 21 days. It re-invests only after two calm weeks, so it gives up part of sharp rebounds (2020: +25% against +27% for equal weight).
 
 ## 5. Point-in-time discipline
 
@@ -96,8 +96,8 @@ The replay calls our model one decision at a time, so any use of future data wou
 | Test | What a leak would look like | Result |
 | --- | --- | --- |
 | Five-bucket factor test | A factor that is "too good" (very high t-stat or monotone in every year) | Passed: no factor stands out; every t-stat below 1.5 |
-| One-day signal delay | Performance improves or barely changes with older data | [pending] |
-| Random books | Random 15-stock books do as well as ours | [pending] |
+| One-day signal delay | Performance improves with older data | Passed: return falls from 17.6% to 13.7% a year |
+| Random books | Random 15-stock books do as well as ours | Passed: beats 5 of 5 (random books 8.0% to 14.3% a year) |
 | Drop one factor | One factor carries all of the return | Done: no single factor carries it; removing momentum or quality costs the most (13.7% to 7.3% and 8.5% a year) |
 
 ## 6. Organizer answers
@@ -119,9 +119,10 @@ What we were told by the organizers during the event, and how the model follows 
 - **Survivorship bias.** The universe is today's listed companies. Stocks that collapsed and were delisted are missing from the history, which flatters any backtest, especially a concentrated one. It likely also makes quality and value look worse than they are, since the weak firms in the history are the ones that survived. The live test month has no such bias.
 - **A narrow universe.** The universe has almost no financials and no energy majors (JPM, BAC, XOM, CVX are absent) and no SPY, so the book is effectively ex-financials and cannot hedge with an index.
 - **Few stress episodes.** The cash rule rests on about three: 2018 Q4, 2020 and 2022. Its thresholds are priors fixed before testing, not fitted.
-- **Return is mostly market exposure so far.** v1 beats equal weight on return but its Sharpe ratio is close to the S&P 500's, so much of the gain is risk, not proven skill (section 9).
+- **Skill is not proven.** Beta is about 1 and alpha is +5.7% a year, but with t = 1.27 it is not statistically significant, and the factor and rule choices were made on the same sample (section 9).
 - **Costs are modeled, not measured.** Hence the double-cost rerun.
-- **Unclustered names.** 431 newer names lack a year of history before the cluster fit and sit in one "other" group that the 30% cap does not cover; refitting yearly would fix this.
+- **Unclustered names.** 431 newer names lack a year of history before the 2018 cluster fit and sit in one "other" group that the 30% cap does not cover (up to 47% of the book in 2024); refitting yearly would fix this. The live book fits its clusters on the year before its own start date, so its groups differ from the backtest's.
+- **Signals decay fast.** A one-day delay cuts return from 17.6% to 13.7% a year, so the replay's next-open fills may cost some return; that test is still to run.
 
 ## 8. What we tried and cut
 
@@ -196,72 +197,68 @@ What it means:
 
 ### Backtest results
 
-**Status: preliminary.** These numbers come from the v1 model (rung 1: equal-weight top 15 with limits and bands, no cash rule, no optimizer). They are not expected returns, and we do not present them as such. Ablation ladder (each rung must beat the previous after costs): rung 1 [this run], rung 2 panic weight [pending], rung 3 cash rule [pending], rung 4 optimizer [pending].
+These numbers are the shipped model, v1.2, replayed weekly from January 2018 to February 2026 with the plan's trading costs charged on every trade (`scripts/run_backtest.py`, `scripts/audit.py`). The six months after that stay held back for the go/no-go. They are not expected returns: the factor and rule choices were made on this same sample, and the universe is today's listed companies.
 
+![Growth of $1](img/growth.png)
 
-#### Full run, January 2018 to February 2026 (v1 with the 2-point no-trade band, costs included)
-
-Note: the audit run in the decision log below reports 13.7% a year for the same v1 configuration; the two runs differ in setup (to be reconciled before final numbers). The v1.1 audit run: 19.2% a year, Sharpe 0.82, alpha +5.7% a year (t = 1.24), turnover 7x a year, 6.6% costs in total; its drawdown and year-by-year rows are [pending].
-
-| | v1 | Equal-weight liquid universe | S&P 500 |
+| | nabla v1.2 | Equal-weight liquid universe | S&P 500 |
 | --- | --- | --- | --- |
-| Per year | 15.2% | 11.5% | 12.4% |
-| Sharpe ratio | 0.67 | 0.61 | 0.70 |
-| Max drawdown | 36% | 39% | 34% |
-| Costs paid | about 21% in total (about 2.5% a year) | | |
-| 2018 Q4 | -8% | -14% to -15% (both benchmarks) | |
-| 2020 | +15% | +27% | +16% |
-| 2022 | -30% | | -19% |
+| Return per year | 17.6% | 11.5% | 12.4% |
+| Total return | +272% | +142% | +158% |
+| Volatility per year | 22.6% | 21.5% | 19.5% |
+| Sharpe ratio | 0.83 | 0.61 | 0.70 |
+| Max drawdown | 29.9% | 38.9% | 33.9% |
+| Median 21 days | +1.5% | +1.6% | +1.8% |
+| Bad month (5th percentile, 21 days) | -8.1% | -8.0% | -7.2% |
+| Worst 21 days | -28.8% | -38.2% | -33.0% |
+| 2018 Q4 | -11.8% | -15.2% | -14.0% |
+| 2020 | +25.4% | +27.1% | +16.3% |
+| 2022 | -18.4% | -19.5% | -19.4% |
+| Turnover per year | 7.5x | 4.5x | n/a |
+| Costs paid (total, 8 years) | 6.8% | 5.7% | n/a |
 
-What it shows: v1 beats equal weight after costs over the full period and lost less in 2018 Q4, but its Sharpe ratio is below the S&P 500's, it lagged the 2020 rebound, and 2022 is the worst year (a momentum-heavy book in a falling market). Costs take most of the edge over equal weight. The panic weight and cash rule target 2022 and 2020; turnover after the no-trade band: [pending].
+![Drawdowns](img/drawdown.png)
 
-#### v1, January 2023 to February 2026 (about 3 years, costs included)
+**What it shows.** v1.2 beats the equal-weight universe and the S&P 500 on return and Sharpe ratio after costs, with a smaller maximum drawdown than either. It lost less in 2018 Q4 and 2022, the stress periods where the cash dial was on. A typical month is slightly below the benchmarks (median +1.5% against +1.6% and +1.8%); the gain comes from smaller losses in sell-offs and a stronger 2023 to 2025.
 
-| | v1 | Equal-weight liquid universe | S&P 500 |
-| --- | --- | --- | --- |
-| Total return | +169% | +58% | +80% |
-| Per year | 37% | 16% | 21% |
-| Volatility (per year) | 26% | 18% | 15% |
-| Sharpe ratio | 1.34 | 0.93 | 1.34 |
-| Max drawdown | 31% | 22% | 19% |
-| Median 21-day return | +2.6% | +1.5% | +2.0% |
-| Bad month (5th percentile, 21 days) | −8.0% | −6.3% | −4.8% |
-| Worst 21 days | −20% | −12% | −12% |
-| Turnover per year | 24x | 5x | n/a |
-| Costs paid (total) | 7.2% | 2.3% | n/a |
+**Robustness** (`scripts/audit.py`; random-book rows from the v1.1 run, since random books ignore the cash dial):
 
-**What it shows.** v1 passes the plan's first gate: it beats the equal-weight liquid universe after costs, on both total return and Sharpe ratio. A typical month (+2.6% median) is ahead of both benchmarks, which is what a mostly total-return score rewards.
+| Test | Result | What it means |
+| --- | --- | --- |
+| Market beta and alpha | Beta 0.96, alpha +5.7% a year (t = 1.27) | About market-level exposure on average (the cash dial lowers it in stress); the alpha is positive but not statistically significant. |
+| Random books (5 books of 15 random liquid names, same bands, caps and costs) | Our model beats all 5: random books earned 8.0% to 14.3% a year | The scores add something beyond holding 15 liquid stocks under our rules. |
+| One-day signal delay | 13.7% a year (vs 17.6%) | Performance falls with older data and does not rise, which is what a model without look-ahead should show. The drop is large for a weekly model: much of the return arrives within a day of a signal (fresh filings and guidance changes), so execution timing matters and the next-open fill test is a priority. |
+| Double trading costs | 16.6% a year (vs 17.6%) | Still ahead of the equal-weight universe (11.5%). |
+| No-trade band and dropping the volatility premium | Turnover 21x to 7.5x a year; costs about 2.2% to 0.8% a year (v1 to v1.2, 2018 to 2026) | Most of the original cost came from resetting weights weekly and from a fast-moving factor. |
 
-**Why we do not trust it yet.**
+#### Market exposure and the plan's beta band
 
-1. **Return is mostly risk, not proven skill.** v1 earned 37% a year against the S&P 500's 21% at the same Sharpe ratio (1.34). Volatility of 26% against 15% implies a market beta of roughly 1.4 to 1.6 (our estimate, assuming a correlation of 0.8 to 0.9; the regression below will give the real figure). At that beta the market alone explains most of the excess return. A high-beta book in the 2023 to 2025 technology rally would look exactly like this.
-2. **The window flatters it.** Three years of a strong, technology-led bull market with no crash like 2020 and no bear market like 2022.
-3. **Survivorship bias.** The universe is today's surviving companies. A concentrated, high-momentum book benefits most from never holding stocks that later collapsed and were delisted.
-4. **Turnover is too high.** 24x a year means about 45% of the book trades every week, costing about 2.3% a year. Most of it comes from resetting all 15 names to exactly equal weight every week. The plan's 2-point no-trade band should cut this without changing what we hold.
-5. **The tail is the real risk in a one-month test.** About 1 month in 20 loses 8% or more, and the worst 21 days lost 20%.
+The plan targets a beta of 1.10 to 1.20 in normal markets. The shipped book is already inside that band without forcing it: rung 1 (no cash dial) measured 1.11. With the cash dial, beta over the whole period is about 0.96 because a quarter of the book is cash in stress weeks. Our earlier guess of 1.4 to 1.6, from the 2023 to 2026 run's volatility, was wrong; that window's excess return came from stock selection in a strong market, not leverage. No beta constraint is added.
 
-**Verdict.** Promising, not proven. The model picks stocks that went up, and costs do not erase the gain, but we cannot claim skill until the market-exposure part is split out.
+![Cluster concentration](img/clusters.png)
 
-#### Beta and the plan's limit
+**Concentration.** For names inside the 10 return clusters, the 30% cap holds (largest cluster: median 21% of the book, never above 30%). Names without a full year of history before the 2018 cluster fit are "unclustered" and uncapped; they reached 47% of the book in 2024. Refitting the clusters each year on past data would fix this (see known limits).
 
-The plan targets a beta of 1.10 to 1.20 in normal markets; the preliminary run suggests v1 runs well above that. Decision pending the regression: either enforce the band (less upside in rallies, a smaller worst month) or accept the higher beta because the score is mostly total return, and record the choice here.
+#### Earlier runs (superseded)
 
-#### Still to run
+The first v1 runs (five factors, no no-trade band) reported 37% a year on 2023 to 2026 with 24x turnover, and 13.7% to 15.2% a year on 2018 to 2026 with about 2.5% a year in costs. The drop-one-factor and regime ladders in the decision logs below explain the changes from v1 to v1.2.
+
+#### Status of every test
 
 | Test | Question it answers | Result |
 | --- | --- | --- |
-| Full backtest from 2018 | Does it hold up through 2018 Q4, the 2020 crash and the 2022 bear market? | Done: see the full run above |
-| Beta and alpha vs the S&P 500 | How much of the return is market exposure? | [pending] |
-| Random-book (shuffle) test | Do 15 random liquid stocks each week do as well? If so, the scores add nothing. | [pending] |
-| One-day signal delay | Does performance fall when signals are a day late? (look-ahead check) | [pending] |
-| Double costs | Does it still beat equal weight? | [pending] |
-| Drop one factor at a time | Which factors earn their place? | Done: volatility premium dropped (v1.1); the other four stay (decision log below) |
-| Five-bucket factor test (`explore/05_factor_buckets.py`) | Does each factor point the right way, in most years? | Done: no factor is reliable over 2018 to 2026 (see the factor test above) |
-| Sample holdings (`explore/06_sample_holdings.py`) | Do the names make sense, is any cluster at the 30% cap, does the stress flag fire in 2020 and 2022? | [pending] |
-| No-trade band | How much turnover and cost does it remove? | [pending] |
-| Crowding check (`explore/07_crowding_check.py`) | Do we just hold last year's biggest winners? | Done: no, 2 of 15 overlap (see below) |
-
-Note: this run may predate the latest quality and value fixes (gross margin in quality, split guard off, money-losers at a 0% earnings yield); rerun before the final numbers.
+| Full backtest from 2018 | Does it hold up through 2018 Q4, the 2020 crash and the 2022 bear market? | Done: lost less than both benchmarks in 2018 Q4 and 2022; lagged equal weight in 2020 |
+| Beta and alpha vs the S&P 500 | How much of the return is market exposure? | Done: beta about 1.1 without the dial, 0.96 with it; alpha positive, not significant |
+| Random-book test | Do 15 random liquid stocks each week do as well? | Done: beats 5 of 5 |
+| One-day signal delay | Does performance fall when signals are a day late? (look-ahead check) | Done: falls (17.6% to 13.7%), no rise; signals decay fast |
+| Double costs | Does it still beat equal weight? | Done: yes |
+| Drop one factor at a time | Which factors earn their place? | Done: volatility premium dropped (v1.1); the other four stay |
+| Regime ladder | Do the panic rule and the cash dial earn their place? | Done: panic rejected, cash dial shipped (v1.2) |
+| Five-bucket factor test | Does each factor point the right way, in most years? | Done: no factor is reliable alone over 2018 to 2026 |
+| Sample holdings (`explore/06_sample_holdings.py`) | Do the names make sense; does the stress flag fire in 2020 and 2022? | Done: recognizable, liquid names (one under $10: CZR in March 2020); stress on in March 2020 and June 2022 (16 weeks in 2020, 44 in 2022) |
+| Crowding check | Do we just hold last year's biggest winners? | Done: no, 2 of 15 overlap |
+| Next-open fills | Do results hold when trades fill at the next open, as in the replay? | [pending] |
+| Held-back six months | The honest out-of-sample check | Untouched until the go/no-go |
 
 
 ## Decision log: volatility premium dropped (v1.1)
