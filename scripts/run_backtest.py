@@ -55,7 +55,8 @@ def main() -> None:
                         "ew_liquid": model.equal_weight_liquid(cfg)}.items():
         res = sim.run(inp.close, inp.volume, sv, strat, start, end, cost_model, bt["book_value"],
                       fund=inp.fund, splits=inp.splits, liquidity=cfg["liquidity"],
-                      cost_cfg=cfg.get("costs"))
+                      cost_cfg=cfg.get("costs"),
+                      no_trade_band=cfg["book"].get("no_trade_band") if name == "v1" else None)
         results[name] = {**sim.metrics(res["daily"]), "periods": sim.period_returns(res["daily"], PERIODS),
                          "avg_names": float(res["books"]["names"].mean())}
         if name == "v1":

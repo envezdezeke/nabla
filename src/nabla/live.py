@@ -22,6 +22,7 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
     sv_by = {d: g for d, g in sv.groupby("date")}
 
     held: list[str] = []
+    prev = pd.Series(dtype=float)
     for d in sig_dates:  # past weekly decisions, then today's
         i = dates.get_loc(d) + 1
         ft = factors.factor_table(inp.close.iloc[:i].iloc[-sim.YEAR - 2:],
@@ -29,7 +30,8 @@ def build_book(ds, cfg: dict, replay_weeks: int = 8) -> dict:
                                   sv_by.get(d, pd.DataFrame(columns=["ticker"])),
                                   inp.fund, inp.splits)
         w, detail = model.decide(ft, inp.groups, held, cfg)
-        held = list(w.index)
+        w = book.no_trade(prev, w, cfg["book"].get("no_trade_band") or 0.0)
+        prev, held = w, list(w.index)
 
     w = book.with_cash(w).round(6)
     if len(w):

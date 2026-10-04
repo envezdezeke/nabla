@@ -40,12 +40,18 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
         strategy: Callable, start, end, cost_model: str = "plan",
         book_value: float = 1e6, fund: pd.DataFrame | None = None,
         splits: pd.DataFrame | None = None, liquidity: dict | None = None,
-        cost_cfg: dict | None = None) -> dict:
-    """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1)."""
+        cost_cfg: dict | None = None, signal_lag: int = 1,
+        no_trade_band: float | None = None) -> dict:
+    """strategy(ft, held: list[str], signal_date) -> target weights (Series, sums to <= 1).
+
+    signal_lag: decisions on day i use data through day i - signal_lag (1 = the
+    prior close; 2 is the one-day-delay leak test).
+    no_trade_band: skip weight changes smaller than this (book.no_trade)."""
+    from .book import no_trade
     rets = close.pct_change(fill_method=None).fillna(0.0)
     dates = close.index
     lo, hi = dates.searchsorted(pd.Timestamp(start)), dates.searchsorted(pd.Timestamp(end), side="right")
-    lo = max(lo, YEAR + 1)
+    lo = max(lo, YEAR + signal_lag + 1)
     rebal = set(i for i in rebalance_days(dates) if lo <= i < hi)
     sv_by_date = {d: g for d, g in sv.groupby("date")}
 
@@ -58,11 +64,14 @@ def run(close: pd.DataFrame, volume: pd.DataFrame, sv: pd.DataFrame,
             w = w * (1 + rets.iloc[i].reindex(w.index).fillna(0.0)) / (1 + r)
         cost, turn = 0.0, 0.0
         if i in rebal or (i == lo):
-            sig = dates[i - 1]
-            ft = factors.factor_table(close.iloc[:i].iloc[-YEAR - 2:], volume.iloc[:i].iloc[-YEAR - 2:],
+            j = i - signal_lag + 1  # rows [0, j) are known at the decision
+            sig = dates[j - 1]
+            ft = factors.factor_table(close.iloc[:j].iloc[-YEAR - 2:], volume.iloc[:j].iloc[-YEAR - 2:],
                                       sv_by_date.get(sig, pd.DataFrame(columns=["ticker"])),
                                       fund, splits)
             target = strategy(ft, list(w.index[w > 0]), sig)
+            if no_trade_band:
+                target = no_trade(w, target, no_trade_band)
             dw = target.reindex(target.index.union(w.index), fill_value=0.0) - \
                 w.reindex(target.index.union(w.index), fill_value=0.0)
             cost = trade_cost(dw, ft, book_value * value, cost_model, liquidity=liquidity, cost_cfg=cost_cfg)

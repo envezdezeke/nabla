@@ -141,3 +141,13 @@ def test_year_cache_reuses_downloads(tmp_path, monkeypatch):
     n = len(calls)
     data._cached_years("prices", date(2022, 6, 1), date(2023, 3, 31), fetch)
     assert len(calls) == n  # second run reads disk only
+
+
+def test_no_trade_band():
+    prev = pd.Series({"A": 0.27, "B": 0.33, "C": 0.40})
+    target = pd.Series({"A": 0.26, "B": 0.24, "D": 0.50})
+    out = book.no_trade(prev, target, 0.02)
+    assert out["A"] == pytest.approx(0.27)          # moved < 2 points: untouched
+    assert "C" not in out and out.sum() == pytest.approx(1.0)
+    assert out["B"] < 0.33                          # moved > 2 points: traded
+    assert book.no_trade(pd.Series(dtype=float), target).equals(target)

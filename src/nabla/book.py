@@ -67,3 +67,24 @@ def with_cash(w: pd.Series) -> pd.Series:
     w = w[w > 0]
     cash = round(1.0 - float(w.sum()), 10)
     return pd.concat([w, pd.Series({CASH: cash})]) if cash > 1e-9 else w
+
+
+def no_trade(prev: pd.Series, target: pd.Series, band: float = 0.02) -> pd.Series:
+    """Skip small trades: a name held before and after whose weight would move by
+    less than `band` keeps its current weight. Names entering, exiting or moving
+    by more than `band` absorb the difference, so the invested total still
+    matches the target's."""
+    prev, target = prev[prev > 0], target[target > 0]
+    if prev.empty or not band:
+        return target
+    both = target.index.intersection(prev.index)
+    keep = both[(target[both] - prev[both]).abs() < band]
+    out = target.copy()
+    out[keep] = prev[keep]
+    move = out.index.difference(keep)
+    total, kept = float(target.sum()), float(out[keep].sum())
+    if len(move) and float(target[move].sum()) > 0 and total > kept:
+        out[move] = target[move] * (total - kept) / float(target[move].sum())
+    else:  # nothing to absorb the drift: scale everything back to the target total
+        out = out * total / float(out.sum())
+    return out
