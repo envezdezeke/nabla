@@ -70,7 +70,7 @@ def test_value_is_earnings_yield_and_negative_earnings_rank_low():
     price = pd.Series({"AAA": 40.0, "BBB": 40.0})
     qv, notes = F.quality_value(f, price, pd.Timestamp("2024-12-31"))
     assert notes["value_def"] == "earnings_yield"
-    assert np.isclose(qv.loc["AAA", "value"], 0.1) and qv.loc["BBB", "value"] < 0
+    assert np.isclose(qv.loc["AAA", "value"], 0.1) and qv.loc["BBB", "value"] == 0.0
 
 
 def test_split_inside_the_ttm_window_leaves_value_neutral(monkeypatch):
@@ -79,7 +79,7 @@ def test_split_inside_the_ttm_window_leaves_value_neutral(monkeypatch):
     price = pd.Series({"AAA": 40.0, "BBB": 40.0})
     splits = pd.DataFrame({"ticker": ["AAA"], "ex_date": [pd.Timestamp("2024-01-15")], "value": [4.0]})
     qv, _ = F.quality_value(f, price, pd.Timestamp("2024-12-31"), splits)
-    assert np.isnan(qv.loc["AAA", "value"]) and qv.loc["BBB", "value"] < 0
+    assert np.isnan(qv.loc["AAA", "value"]) and qv.loc["BBB", "value"] == 0.0
 
 
 def test_quality_prefers_gross_profit_to_assets():
