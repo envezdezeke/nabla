@@ -25,3 +25,19 @@ We set these ourselves (the organizers left limits to each team). The score is m
 | Trading costs | Half-spread 5 / 10 / 20 bps by liquidity tier, plus price impact | Costs are charged in every backtest and in the optimizer, as the organizers required; we also rerun at double costs. |
 
 Cash is an explicit line in each portfolio, so weights always sum to 1 (for example 75% stocks and 25% cash under stress).
+
+## Data checks on the real data (fundamentals)
+
+Run of `explore/04_fundamentals_check.py` on the hosted data (data through 2026-09-21).
+
+| Check | Result | What it means for the model |
+| --- | --- | --- |
+| Column mapping | EPS, sales, EBIT, EBITDA, net income, free cash flow and net debt map as guessed. No gross profit, total assets or equity columns exist. | Quality uses the third definition in the code: a percentile blend of operating margin, FCF margin and low leverage (net debt / EBITDA). Gross profit / assets and ROE are not possible on this data. |
+| Quarterly vs year-to-date | Quarterly (AAPL sales about $90B to $144B per quarter). | Summing the last four quarters gives a correct trailing twelve months. |
+| EPS split restatement | Restated. AAPL 2019 EPS 0.55 = reported $2.18 / 4 (2020 split); NVDA 2023 EPS 0.25 = reported about $2.48 / 10 (2024 split). | Earnings yield is consistent across splits; the split guard in `value()` stays as a safety net. |
+| When rows become knowable | The filing calendar starts in 2014 and has no period-end or acceptance-time fields, so filings are matched to the next filing date after period end; unmatched rows use a 60-day lag. Share on the lag: 34% of 2018 rows, 13% in 2023, 2% in 2026. GOOGL is not in the calendar. | Point-in-time holds for matched rows (available the day after filing). Known small leak risk: a company that files its annual report 75 to 90 days after year end and is unmatched counts as known up to a month early. |
+| Known stocks (2023-06-30) | AAPL and MSFT at the 98th quality percentile. 324 money-losing names have a mean value z of -0.59 and the five most negative earnings yields are all loss-makers. | Signs are right. |
+| Banks and energy cheap | Cannot test: `ds.universe()` has almost no financials (only BR and CHYM match), and JPM, BAC, XOM, CVX and SPY are not in it. Other energy names (DVN, CHRD, CVI) are. | The book is effectively ex-financials. No SPY hedge is possible. |
+| Sector codes | `reference_tickers` has no SIC codes. | Sector groups come from return co-movement clusters over the year before the backtest start (`data.return_clusters`), used for sector z-scores and the 30% cap. |
+
+No change to `src/nabla/fundamentals.py` was needed.
