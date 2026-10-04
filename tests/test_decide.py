@@ -63,3 +63,13 @@ def test_closed_weekdays_inside_data_are_holidays():
     hol = dc._closed_inside(days)
     assert date(2026, 9, 7) in hol
     assert dc.next_trading_day(date(2026, 9, 4), hol) == date(2026, 9, 8)
+
+
+def test_execution_is_after_the_decision():
+    hol = set()
+    fri_close = dc._parse_cutoff("2024-06-07")                    # Fri 16:00 -> Mon open
+    assert dc.execution_day(fri_close + pd.Timedelta(minutes=15), hol) == date(2024, 6, 10)
+    wed_10 = dc._parse_cutoff("2024-06-05T10:00:00-04:00")        # after the open -> Thu
+    assert dc.execution_day(wed_10 + pd.Timedelta(minutes=15), hol) == date(2024, 6, 6)
+    wed_8 = dc._parse_cutoff("2024-06-05T08:00:00-04:00")         # before the open -> same day
+    assert dc.execution_day(wed_8 + pd.Timedelta(minutes=15), hol) == date(2024, 6, 5)

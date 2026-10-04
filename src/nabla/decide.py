@@ -29,6 +29,7 @@ from . import data, live, model
 ET = ZoneInfo("America/New_York")
 SCHEMA_VERSION = "1.0"
 CLOSE = time(16, 0)
+OPEN = time(9, 30)
 
 
 def _parse_cutoff(cutoff) -> datetime:
@@ -69,6 +70,14 @@ def next_trading_day(d: date, holidays: set[date]) -> date:
     while d.weekday() >= 5 or d in holidays:
         d += timedelta(days=1)
     return d
+
+
+def execution_day(decision_time: datetime, holidays: set[date]) -> date:
+    """First trading day whose 09:30 ET open is after the decision (never before it)."""
+    d = decision_time.date()
+    if d.weekday() < 5 and d not in holidays and decision_time.time() < OPEN:
+        return d
+    return next_trading_day(d, holidays)
 
 
 def last_data_day(cutoff: datetime, days: list[date]) -> date:
@@ -119,8 +128,8 @@ def decide(information_cutoff, ds=None, team_id: str | None = None) -> dict:
     if key not in _BOOKS:
         _BOOKS[key] = live.build_book(ds, cfg, asof=decided)
     book = _BOOKS[key]
-    execute = next_trading_day(cutoff.date() if cutoff.time() >= CLOSE else cutoff.date() - timedelta(days=1), hol)
-    decision_time = max(cutoff, datetime.combine(cutoff.date(), time(16, 15), ET))
+    decision_time = cutoff + timedelta(minutes=15)  # 16:00 cutoff -> 16:15 decision
+    execute = execution_day(decision_time, hol)
     model_id = f"nabla-{cfg['version']}"
     return {
         "schema_version": SCHEMA_VERSION,
