@@ -2,7 +2,7 @@
 
 Read `CLAUDE.md` first (the v5 plan and rules), then this file, then `docs/AUDIT.md` (results and every decision).
 
-## Current state (v1.3, final numbers)
+## Current state (v1.4: v1.3 + beta cap 1.2; 15.9% vs 13.0%, Sharpe 0.78, max drawdown 33%, book beta 1.12. Below: v1.3 numbers)
 
 - **Shipped model v1.3:** four signals (momentum, guidance, quality, value), top 15 equal weight with bands and caps, 25% `CASHHOLDING` under the stress flag, stock groups = consensus clusters refit each January on prior data, frozen in `config/clusters.json`. Live book `config/book.json` rebuilt under v1.3.
 - **Headline (Jan 2018 to the cutoff, Aug 21 2026, costs included):** 14.9%/yr vs 13.0% S&P and 12.1% equal weight; Sharpe 0.73 (S&P 0.73); max drawdown 34% (S&P 34%); $1 to $3.31 (S&P $2.87). Matches `scripts/stress.py`.

@@ -1,11 +1,11 @@
 {
   "as_of": "2026-09-21",
-  "model": "v1.3",
+  "model": "v1.4",
   "method": "equal_weight_top15_fixed5_composite_bands",
   "holdings": [
     {
       "ticker": "MU",
-      "weight": 0.074833
+      "weight": 0.073537
     },
     {
       "ticker": "GNTX",
@@ -17,14 +17,10 @@
     },
     {
       "ticker": "ZM",
-      "weight": 0.085227
+      "weight": 0.053617
     },
     {
       "ticker": "META",
-      "weight": 0.06
-    },
-    {
-      "ticker": "BE",
       "weight": 0.06
     },
     {
@@ -32,32 +28,36 @@
       "weight": 0.06
     },
     {
+      "ticker": "TGT",
+      "weight": 0.079481
+    },
+    {
       "ticker": "NVDA",
       "weight": 0.06
     },
     {
-      "ticker": "CENX",
-      "weight": 0.074833
+      "ticker": "THC",
+      "weight": 0.08375
     },
     {
       "ticker": "INDV",
       "weight": 0.06
     },
     {
+      "ticker": "AMGN",
+      "weight": 0.066383
+    },
+    {
       "ticker": "TDC",
       "weight": 0.06
     },
     {
-      "ticker": "RMBS",
-      "weight": 0.06
-    },
-    {
       "ticker": "AGX",
-      "weight": 0.07988
+      "weight": 0.079481
     },
     {
       "ticker": "TPR",
-      "weight": 0.085227
+      "weight": 0.083751
     },
     {
       "ticker": "MNST",
@@ -69,7 +69,9 @@
     "guidance_velocity": 0.7061281337047354,
     "quality": 0.9930362116991643,
     "value": 0.9930362116991643,
-    "vol_premium": 0.9749303621169917
+    "vol_premium": 0.9749303621169917,
+    "pead": 0.958217270194986,
+    "beta": 1.0
   },
   "candidates": [
     {
@@ -81,6 +83,8 @@
       "quality": 0.3801,
       "value": 0.0429,
       "vol_premium": -0.1767,
+      "pead": 7.2904,
+      "beta": 2.5668,
       "adv20": 24310768971.6708,
       "days_to_next_report": 4.0
     },
@@ -93,6 +97,8 @@
       "quality": 0.2035,
       "value": 0.0854,
       "vol_premium": -0.1365,
+      "pead": 1.3814,
+      "beta": 0.8305,
       "adv20": 55080460.327,
       "days_to_next_report": 43.0
     },
@@ -105,6 +111,8 @@
       "quality": 0.3107,
       "value": 0.0602,
       "vol_premium": -0.273,
+      "pead": 3.5625,
+      "beta": 2.3058,
       "adv20": 2843854442.578,
       "days_to_next_report": 53.0
     },
@@ -117,6 +125,8 @@
       "quality": 0.1766,
       "value": 0.0834,
       "vol_premium": 0.739,
+      "pead": 2.8494,
+      "beta": 1.2151,
       "adv20": 77412984.4522,
       "days_to_next_report": 31.0
     },
@@ -129,6 +139,8 @@
       "quality": 0.4308,
       "value": 0.1215,
       "vol_premium": 0.2009,
+      "pead": 8.6294,
+      "beta": 0.9549,
       "adv20": 347973577.7585,
       "days_to_next_report": 65.0
     },
@@ -141,6 +153,8 @@
       "quality": 0.2641,
       "value": 0.0672,
       "vol_premium": 0.149,
+      "pead": 12.9129,
+      "beta": 1.2625,
       "adv20": 98712005.3255,
       "days_to_next_report": 44.0
     },
@@ -153,6 +167,8 @@
       "quality": 0.3536,
       "value": 0.0363,
       "vol_premium": 0.0045,
+      "pead": -0.383,
+      "beta": 1.238,
       "adv20": 13010356962.2936,
       "days_to_next_report": 38.0
     },
@@ -165,6 +181,8 @@
       "quality": 0.127,
       "value": 0.003,
       "vol_premium": -0.0858,
+      "pead": 2.4089,
+      "beta": 3.1764,
       "adv20": 4175309363.859,
       "days_to_next_report": 36.0
     },
@@ -177,6 +195,8 @@
       "quality": 0.338,
       "value": 0.0256,
       "vol_premium": -0.4779,
+      "pead": 0.9474,
+      "beta": 0.5644,
       "adv20": 2753728462.6801,
       "days_to_next_report": 44.0
     },
@@ -189,6 +209,8 @@
       "quality": -0.1108,
       "value": 0.0614,
       "vol_premium": 0.033,
+      "pead": 4.437,
+      "beta": 0.6421,
       "adv20": 624504221.3499,
       "days_to_next_report": 67.0
     },
@@ -201,6 +223,8 @@
       "quality": 0.4179,
       "value": 0.035,
       "vol_premium": 0.3815,
+      "pead": 3.0325,
+      "beta": 1.6217,
       "adv20": 29758306394.2285,
       "days_to_next_report": 65.0
     },
@@ -213,6 +237,8 @@
       "quality": 0.4677,
       "value": 0.0069,
       "vol_premium": 0.1113,
+      "pead": 2.9833,
+      "beta": 1.6681,
       "adv20": 4925762818.0224,
       "days_to_next_report": 43.0
     },
@@ -225,6 +251,8 @@
       "quality": 0.0464,
       "value": 0.156,
       "vol_premium": -0.3176,
+      "pead": 1.7181,
+      "beta": 1.4418,
       "adv20": 71565148.5397,
       "days_to_next_report": 45.0
     },
@@ -237,6 +265,8 @@
       "quality": -0.0906,
       "value": 0.0303,
       "vol_premium": 0.3326,
+      "pead": 3.7613,
+      "beta": 1.8468,
       "adv20": 5365380443.4991,
       "days_to_next_report": 78.0
     },
@@ -249,6 +279,8 @@
       "quality": 0.1401,
       "value": 0.1001,
       "vol_premium": -0.2395,
+      "pead": 0.9831,
+      "beta": 0.6741,
       "adv20": 227295090.8704,
       "days_to_next_report": 37.0
     },
@@ -261,6 +293,8 @@
       "quality": 0.2829,
       "value": 0.0834,
       "vol_premium": -0.4768,
+      "pead": 1.2394,
+      "beta": 0.6479,
       "adv20": 72847568.1692,
       "days_to_next_report": 42.0
     },
@@ -273,6 +307,8 @@
       "quality": 0.2517,
       "value": 0.0413,
       "vol_premium": 0.4652,
+      "pead": 1.2173,
+      "beta": 0.6985,
       "adv20": 1186146909.4741,
       "days_to_next_report": 44.0
     },
@@ -285,6 +321,8 @@
       "quality": 0.2661,
       "value": 0.1672,
       "vol_premium": -0.162,
+      "pead": 0.3707,
+      "beta": 1.181,
       "adv20": 51613421.0205,
       "days_to_next_report": 44.0
     },
@@ -297,6 +335,8 @@
       "quality": 0.2741,
       "value": 0.0466,
       "vol_premium": 0.7505,
+      "pead": 9.3717,
+      "beta": 0.6795,
       "adv20": 4159179392.4675,
       "days_to_next_report": 66.0
     },
@@ -309,6 +349,8 @@
       "quality": 0.442,
       "value": 0.0228,
       "vol_premium": -0.073,
+      "pead": 0.1638,
+      "beta": 2.6631,
       "adv20": 218035461.3132,
       "days_to_next_report": 36.0
     },
@@ -321,6 +363,8 @@
       "quality": 0.3932,
       "value": 0.0645,
       "vol_premium": -0.1477,
+      "pead": 0.1537,
+      "beta": 1.4475,
       "adv20": 1038433371.3787,
       "days_to_next_report": 31.0
     },
@@ -333,6 +377,8 @@
       "quality": 0.2127,
       "value": 0.0338,
       "vol_premium": -0.1006,
+      "pead": 2.2343,
+      "beta": 1.5565,
       "adv20": 186855099.757,
       "days_to_next_report": 72.0
     },
@@ -345,6 +391,8 @@
       "quality": 0.2824,
       "value": 0.0301,
       "vol_premium": 0.1239,
+      "pead": 1.5065,
+      "beta": 1.0099,
       "adv20": 1695942854.3453,
       "days_to_next_report": 72.0
     },
@@ -357,6 +405,8 @@
       "quality": 0.2067,
       "value": 0.0944,
       "vol_premium": -0.1039,
+      "pead": 2.7339,
+      "beta": 0.9926,
       "adv20": 131851701.0011,
       "days_to_next_report": 38.0
     },
@@ -369,6 +419,8 @@
       "quality": -0.1167,
       "value": 0.1279,
       "vol_premium": 0.031,
+      "pead": -1.9381,
+      "beta": 0.6071,
       "adv20": 63563450.9486,
       "days_to_next_report": 36.0
     },
@@ -381,6 +433,8 @@
       "quality": 0.363,
       "value": 0.0594,
       "vol_premium": 0.1681,
+      "pead": 3.6829,
+      "beta": 1.0141,
       "adv20": 543594630.6222,
       "days_to_next_report": 45.0
     },
@@ -393,6 +447,8 @@
       "quality": 0.3013,
       "value": 0.0663,
       "vol_premium": -0.1598,
+      "pead": 3.1129,
+      "beta": 1.1076,
       "adv20": 424468776.4478,
       "days_to_next_report": 52.0
     },
@@ -405,6 +461,8 @@
       "quality": 0.3344,
       "value": 0.0248,
       "vol_premium": -0.1815,
+      "pead": 1.0575,
+      "beta": 0.4659,
       "adv20": 428017120.9374,
       "days_to_next_report": 46.0
     },
@@ -417,6 +475,8 @@
       "quality": NaN,
       "value": NaN,
       "vol_premium": -0.1784,
+      "pead": NaN,
+      "beta": 0.8397,
       "adv20": 13148741303.9005,
       "days_to_next_report": 43.0
     },
@@ -429,6 +489,8 @@
       "quality": 0.1137,
       "value": 0.4689,
       "vol_premium": -0.0059,
+      "pead": 0.0128,
+      "beta": 1.2945,
       "adv20": 169854924.537,
       "days_to_next_report": 46.0
     }

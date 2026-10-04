@@ -3,7 +3,7 @@
 One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md` (v1.3, weekly replay, costs included). Headline: Jan 2018 to the data cutoff (Aug 2026). Tests marked "development" ran on Jan 2018 to Feb 2026, before the six held-back months were opened.
 
 **One month is mostly luck. How is this skill?**
-We can't prove skill in one month and don't claim to. We claim a process: published signals, rules fixed before testing, and an eight-and-a-half-year weekly replay that beat the S&P and equal weight after costs (14.9% vs 13.0% and 12.1% a year), 16 of 20 random portfolios run under the same rules, and six held-back months we opened once (+19.7%). In any one month we beat the S&P in about half of past windows (49%). The edge is not statistically proven (alpha +2.5% a year, t = 0.6).
+We can't prove skill in one month and don't claim to. We claim a process: published signals, rules fixed before testing, and an eight-and-a-half-year weekly replay that beat the S&P and equal weight after costs (15.9% vs 13.0% and 12.1% a year for v1.4; 14.9% for v1.3 without the beta cap), 16 of 20 random portfolios run under the same rules, and six held-back months we opened once (+19.7%). In any one month we beat the S&P in about half of past windows (49%). The edge is not statistically proven (alpha +2.5% a year, t = 0.6).
 
 **Did you test it on data it never saw?**
 Yes. We built everything on Jan 2018 to Feb 2026 and kept the last six months untouched. Opened once at the end: +19.7%, Sharpe 1.83, worst drop 7.8%. Six months is short, so it's encouraging, not proof.
@@ -15,7 +15,7 @@ Every decision uses data through the prior close, filings count from the day aft
 About 100 independent months since 2018, and even simple signals can't be told from luck on them, so a flexible model would learn noise. Fixed rules are transparent and give the same answer on every replay.
 
 **What's your market exposure?**
-Beta about 1.0 over the whole backtest; the cash rule lowers it in stress. The book entering the judged month is hotter, about 1.65, because momentum pulled it into chip and memory names (about a quarter of the book). We state that rather than hide it.
+Beta about 1.0 over the whole backtest; the cash rule lowers it in stress. Momentum had pushed the book entering the judged month to about 1.65, so v1.4 caps book beta at 1.2 (now about 1.1). The cap passed its pre-registered rule (return within a point, lower volatility and drawdown) but was tested after the holdout, so its extra point of return is in-sample.
 
 **Why cash instead of puts?**
 SPY and its options aren't in our universe, and puts cost premium every month in a test scored mostly on return. Cash costs nothing and is an explicit line in every portfolio.
