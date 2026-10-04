@@ -258,3 +258,21 @@ The plan targets a beta of 1.10 to 1.20 in normal markets; the preliminary run s
 | Crowding check (`explore/07_crowding_check.py`) | Do we just hold last year's biggest winners? | Done: no, 2 of 15 overlap (see below) |
 
 Note: this run may predate the latest quality and value fixes (gross margin in quality, split guard off, money-losers at a 0% earnings yield); rerun before the final numbers.
+
+
+## Decision log: volatility premium dropped (v1.1)
+
+The drop-one-factor backtest on the full v1 book (2018 to the six held-back months, plan costs, 2-point no-trade band) ran `scripts/audit.py`:
+
+| Variant | Annual return | Sharpe | Alpha vs SPX (t) | Turnover / year | Costs paid |
+| --- | --- | --- | --- | --- | --- |
+| v1, all five | 13.7% | 0.65 | +1.1% (0.24) | 21x | 17.8% |
+| without volatility premium | 19.2% | 0.82 | +5.7% (1.24) | 7x | 6.6% |
+| without momentum | 7.3% | 0.42 | -4.4% | 23x | 20.4% |
+| without quality | 8.5% | 0.45 | -3.5% | 22x | 19.6% |
+| without guidance velocity | 11.7% | 0.56 | -0.7% | 23x | 20.3% |
+| without value | 11.8% | 0.55 | -0.6% | 24x | 19.3% |
+
+**Decision:** the volatility premium weight is 0 (`config/model.json`, version `v1.1`). The reason is mechanical as well as statistical: it is built from 21-day realized and 30-day implied volatility, which move every day, so it reshuffled the top 15 weekly and tripled turnover; the five-bucket test also found it pointing the wrong way. The other four stay because removing each one lowered return.
+
+**Caveat:** the factor was removed using the same 2018 to 2026 sample the backtest reports, so v1.1's backtest is flattered. The six held-back months are the honest check at the go/no-go. Alpha is still not statistically significant (t = 1.24).
