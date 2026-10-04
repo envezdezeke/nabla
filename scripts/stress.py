@@ -252,8 +252,10 @@ def main() -> None:
             reg[lab] = {"days": len(d), "v1.3 ann": port[d].mean() * 252, "S&P ann": mkt[d].mean() * 252,
                         "beta": capm(port[d], mkt[d])["beta"]}
         t = pd.DataFrame(reg).T
-        print("\n### by market regime (monthly averages; daily means x 252 by vol tercile and stress flag)")
-        print(t.astype(float).round(3).to_string())
+        print("\n### up and down S&P months (average monthly return; capture = v1.3 / S&P)")
+        print(t.loc[["up months", "down months"], ["months", "v1.3 avg", "S&P avg", "capture"]].astype(float).round(3).to_string())
+        print("\n### by S&P volatility tercile (prior 21 days) and stress flag (daily mean x 252)")
+        print(t.drop(["up months", "down months"])[["days", "v1.3 ann", "S&P ann", "beta"]].astype(float).round(3).to_string())
         out["regimes"] = t.to_dict(orient="index")
 
         r21, m21 = rolling(port, 21), rolling(mkt, 21)
@@ -341,7 +343,7 @@ def main() -> None:
         for name, ch in changes.items():
             rows[name] = run(name, c=with_change(cfg, ch))[1]
         t = show("parameter perturbations (one change at a time; not a search, nothing here ships)", rows)
-        beat = int((t["ann_return"] > spx_m["ann_return"]).sum()) - 1
+        beat = int((t["ann_return"].iloc[1:] > spx_m["ann_return"]).sum())
         print(f"{beat} of {len(rows) - 1} perturbations beat the S&P 500 ({spx_m['ann_return']:.1%}/yr); "
               f"range {t['ann_return'].min():.1%} to {t['ann_return'].max():.1%}")
         out["params"] = t.to_dict(orient="index")
@@ -362,8 +364,11 @@ def main() -> None:
         t = show("trading costs and fills", rows)
         per_x = (base["ann_return"] - rows["5x plan costs"]["ann_return"]) / 4
         if per_x > 0:
-            print(f"each extra 1x of plan costs takes ~{per_x:.2%}/yr; breakeven vs the S&P 500 at about "
-                  f"{1 + (base['ann_return'] - spx_m['ann_return']) / per_x:.1f}x plan costs")
+            lead = base["ann_return"] - spx_m["ann_return"]
+            vs_spx = (f"stops beating the S&P 500 at about {1 + lead / per_x:.1f}x plan costs" if lead > 0
+                      else "already trails the S&P 500 at plan costs")
+            print(f"each extra 1x of plan costs takes ~{per_x:.2%}/yr; {vs_spx}; "
+                  f"return reaches 0 at about {1 + base['ann_return'] / per_x:.1f}x")
         out["costs"] = t.to_dict(orient="index")
 
     if "noise" in want:
