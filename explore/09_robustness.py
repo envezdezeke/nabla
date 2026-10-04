@@ -52,6 +52,10 @@ wf = regime.weekly_flags(spx_px.loc[:end])
 print(f"window {start.date()} -> {end.date()}, model {cfg['version']}", flush=True)
 
 
+def save():
+    Path(ROOT / "artifacts" / "robustness.json").write_text(json.dumps(out, indent=2, default=str))
+
+
 def run(name, strat, **kw):
     print(f"\n== {name}", flush=True)
     c = kw.pop("cfg", cfg)
@@ -80,6 +84,7 @@ def with_cash(fn):
 out = {"window": [str(start.date()), str(end.date())], "model": cfg["version"]}
 base = run("base (close fills)", model.strategy(inp.groups, cfg, wf))
 out["base"] = summary(base)
+save()
 
 if "fills" in want:
     raw = data.load_opens(ds, data.window_start(start.date(), 300), end.date())
@@ -93,6 +98,7 @@ if "fills" in want:
     reb = base["books"]["date"]
     out["next_open"]["rebalance_day_gain_bps"] = float((d.loc[d.index.isin(reb), "open"]
                                                        - d.loc[d.index.isin(reb), "close"]).mean() * 1e4)
+    save()
 
 if "random" in want:
     rnd = {}
@@ -105,6 +111,7 @@ if "random" in want:
                      "model_beats_return": int((rr["ann_return"] < out["base"]["ann_return"]).sum()),
                      "model_beats_sharpe": int((rr["sharpe"] < out["base"]["sharpe"]).sum()),
                      "cash_dial_applied": bool(cfg.get("regime", {}).get("stress_cash"))}
+    save()
 
 if want & {"years", "starts"}:
     ew = run("equal-weight liquid", model.equal_weight_liquid(cfg), band=None)
@@ -123,6 +130,7 @@ if want & {"years", "starts"}:
             ann = (1 + r).prod() ** (252 / len(r)) - 1
             st[y] = ann.round(4).to_dict()
         out["starts"] = st
+        save()
 
 if "clusters" in want:
     by_year = {}
@@ -131,7 +139,7 @@ if "clusters" in want:
     strat_y = {y: model.strategy(g, cfg, wf) for y, g in by_year.items()}
 
     def yearly(ft, held, sig):
-        return strat_y[pd.Timestamp(sig).year](ft, held, sig)
+        return strat_y[max(pd.Timestamp(sig).year, start.year)](ft, held, sig)
     res = run("clusters refit yearly", yearly)
     out["clusters_yearly"] = summary(res)
     out["clusters_yearly"]["unclustered_by_year"] = {y: int((g == "other").sum()) for y, g in by_year.items()}
