@@ -31,7 +31,7 @@ Read `CLAUDE.md` first (the full v5 plan and rules), then this file.
 
 ## Real-data checks: done (see docs/AUDIT.md)
 1. Fundamentals check: mapping confirmed, flows quarterly, EPS split-restated; universe has no big banks, XOM/CVX or SPY; no SIC codes (sector groups = return clusters, 431 newer names fall in one "other" group).
-2. Factor buckets (96 months, 2018-2026): momentum and guidance velocity right sign but weak; quality, value, vol premium backwards; five-factor composite backwards. No leak signs. Recommendation to Ezekiel: score on momentum + guidance only (his call; not yet in config).
+2. Factor buckets (96 months, 2018-2026): momentum and guidance velocity right sign but weak; quality, value, vol premium backwards; five-factor composite backwards. No leak signs. Decision: keep all five factors while adding layers (panic weight, cash rule, optimizer); drop factors later via the drop-one-factor backtest on the full model.
 3. AUDIT.md, deck (new slide `factortest`) and script (row 4b) updated.
 
 ## Jesse's remaining tasks (from the plan)
