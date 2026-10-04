@@ -18,8 +18,11 @@ Rules:
 """
 from __future__ import annotations
 
+import json
 import os
+import time as _time
 from datetime import date, datetime, time, timedelta
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -105,6 +108,36 @@ def week_decision_day(d: date, days: list[date], holidays: set[date]) -> date:
 
 _DS: dict = {}
 _BOOKS: dict = {}  # (dataset, decision day, model version) -> book; the replay calls the same week many times
+BOOK_DIR = Path(__file__).resolve().parents[2] / "artifacts" / "books"
+
+
+def _book_key(ds, decided: date, version: str):
+    return (getattr(ds, "base", None) or id(ds), decided, version)
+
+
+def _stored(ds, decided: date, version: str) -> dict | None:
+    """A weekly book computed earlier (memory, then disk for the remote dataset).
+    A book depends only on data on or before its decision day, so it never goes stale."""
+    key = _book_key(ds, decided, version)
+    if key in _BOOKS:
+        return _BOOKS[key]
+    f = BOOK_DIR / f"{version}_{decided}.json"
+    if getattr(ds, "base", None) and f.exists():
+        try:
+            _BOOKS[key] = json.loads(f.read_text())
+            return _BOOKS[key]
+        except ValueError:
+            return None
+    return None
+
+
+def _compute(ds, decided: date, cfg: dict) -> dict:
+    book = live.build_book(ds, cfg, asof=decided)
+    _BOOKS[_book_key(ds, decided, cfg["version"])] = book
+    if getattr(ds, "base", None):
+        BOOK_DIR.mkdir(parents=True, exist_ok=True)
+        (BOOK_DIR / f"{cfg['version']}_{decided}.json").write_text(json.dumps(book, default=str))
+    return book
 
 
 def _dataset(root: str):
@@ -158,15 +191,12 @@ def decide(information_cutoff, ds=None, team_id: str | None = None,
     today = last_data_day(cutoff, days)
     decided = week_decision_day(today, days, hol)
     rebalance = decided == today and cutoff.date() == today
-    key = (id(ds), decided, cfg["version"])
     used_fallback = False
-    if key in _BOOKS:
-        book = _BOOKS[key]
-    elif fallback_book is not None:
+    book = _stored(ds, decided, cfg["version"])
+    if book is None and fallback_book is not None:
         book, used_fallback = fallback_book, True
-    else:
-        _BOOKS[key] = live.build_book(ds, cfg, asof=decided)
-        book = _BOOKS[key]
+    elif book is None:
+        book = _compute(ds, decided, cfg)
     decision_time = cutoff + timedelta(minutes=15)  # 16:00 cutoff -> 16:15 decision
     execute = execution_day(decision_time, hol)
     model_id = f"nabla-{cfg['version']}"
@@ -198,18 +228,29 @@ def series_days(start: date, end: date, days: list[date], holidays: set[date]) -
     return [d for d in grid if next_trading_day(d, hol) <= end]
 
 
-def series(start, end, ds=None, team_id: str | None = None) -> dict:
+def series(start, end, ds=None, team_id: str | None = None, budget_s: float | None = None) -> dict:
     """POST /decisions body for the judges' decision-series rubric
     (starter launchpad/rubric/decisions.yaml): the frozen model replayed week by
     week through [start, end]. Each record is decide() at that day's 16:00 ET
     cutoff, so every book uses only data on or before its own cutoff;
-    decision_id counts 1, 2, ... as the format requires."""
+    decision_id counts 1, 2, ... as the format requires.
+
+    budget_s: once the time is spent, weeks not yet computed reuse the latest
+    earlier book (older data only, so still point-in-time) and say so in
+    "fallback"; the background warmer fills them in for the next call."""
+    t0 = _time.time()
     ds = ds or _dataset(os.environ.get("SV_DATA_ROOT", "."))
     start, end = pd.Timestamp(start).date(), pd.Timestamp(end).date()
     days = data.trading_days(ds)
-    out = []
+    out, last_book = [], None
+    version = model.load_config()["version"]
     for i, d in enumerate(series_days(start, end, days, _holidays(ds)), 1):
-        rec = decide(d, ds=ds, team_id=team_id)
+        late = budget_s is not None and _time.time() - t0 > budget_s
+        stale = last_book if late and _stored(ds, d, version) is None else None
+        rec = decide(d, ds=ds, team_id=team_id, fallback_book=stale)
+        if stale is not None:
+            rec["fallback"] = f"time budget spent: book from {stale.get('as_of')} (earlier data only)"
+        last_book = _stored(ds, d, version) or last_book
         rec["decision_id"] = i
         rec["action"] = "rebalance"
         out.append(rec)

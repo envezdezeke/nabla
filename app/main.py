@@ -62,6 +62,15 @@ class _LazyDataset:
                 raise DataUnavailable(self.error) from e
         return self._ds
 
+    def refresh(self):
+        """Re-read the server's index so newly published days become visible."""
+        try:
+            self._ds, self.error = Dataset(), None
+        except Exception as e:  # noqa: BLE001
+            self.error, self._failed_at = f"{type(e).__name__}: {e}", time.time()
+            raise DataUnavailable(self.error) from e
+        return self._ds
+
     def __getattr__(self, name):
         return getattr(self.connect(), name)
 
@@ -108,17 +117,6 @@ def _last_day() -> date:
         return data.last_trading_day(ds.connect())
     except DataUnavailable:
         return _offline(data.cached_last_day)
-
-
-def _warm() -> None:
-    """Fill the cache at startup: the screen window first, then 2020 (the
-    rubric's /backtest request)."""
-    try:
-        last = data.last_trading_day(ds.connect())
-        _screen_table(last)
-        _prices(date(2020, 1, 1), date(2020, 12, 31))
-    except Exception:  # noqa: BLE001 - warming is best effort
-        pass
 
 
 def clean(records: list[dict]) -> list[dict]:
@@ -246,22 +244,42 @@ def decide_post(req: DecideRequest) -> dict:
         raise HTTPException(400, str(e))
 
 
+WARM_EVERY_SECONDS = 600
+WARM_LOOKBACK_DAYS = 70
+
+
+def _warm_once() -> None:
+    """Pick up newly published days and precompute every weekly book in the last
+    ~10 weeks (saved under artifacts/books), so POST /decisions and /decide answer
+    from stored books instead of computing inside the judges' timeout. Also
+    refreshes this year's price cache and the screen."""
+    live_ds = ds.refresh()
+    days = data.trading_days(live_ds)
+    last = days[-1]
+    _screen_table(last)
+    _prices(date(2020, 1, 1), date(2020, 12, 31))  # the rubric's /backtest year
+    hol = replay._holidays(live_ds) | replay._closed_inside(days)
+    recent = [d for d in days if (last - d).days <= WARM_LOOKBACK_DAYS]
+    for d in [d for d in recent if replay.is_rebalance_day(d, hol)] + [last]:
+        replay.decide(d, ds=live_ds)
+    _state["warm"] = f"ok through {last}"
+
+
 def _warm() -> None:
-    """Compute the latest weekly decisions at startup so the first judge call is fast."""
-    try:
-        live_ds = ds.connect()
-        days = data.trading_days(live_ds)
-        for d in days[-6:]:
-            replay.decide(d, ds=live_ds)
-        _state["warm"] = f"ok through {days[-1]}"
-    except Exception as e:  # noqa: BLE001 - warming is best-effort
-        _state["warm"] = f"failed: {type(e).__name__}: {e}"
+    """Background loop: warm now, then every WARM_EVERY_SECONDS."""
+    while True:
+        try:
+            _warm_once()
+        except Exception as e:  # noqa: BLE001 - warming is best-effort
+            _state["warm"] = f"failed: {type(e).__name__}: {e}"
+        time.sleep(WARM_EVERY_SECONDS)
 
 
 @app.on_event("startup")
 def _startup() -> None:
-    _state["warm"] = "running"
-    threading.Thread(target=_warm, daemon=True).start()
+    if _state.get("warm") is None:
+        _state["warm"] = "running"
+        threading.Thread(target=_warm, daemon=True).start()
 
 
 class DecisionsRequest(BaseModel):
@@ -290,12 +308,17 @@ def decisions(req: DecisionsRequest) -> dict:
         stored = {}
     if key in stored and stored[key].get("model_id") == f"nabla-{model.load_config()['version']}":
         return stored[key]
-    live_ds = ds.connect()  # no data and no precomputed window -> 503
-    fut = _pool.submit(replay.series, req.start, req.end, live_ds, req.team_id)
+    try:
+        live_ds = ds.refresh()  # see days published since startup
+    except DataUnavailable:
+        live_ds = ds.connect()  # no data and no precomputed window -> 503
+    fut = _pool.submit(replay.series, req.start, req.end, live_ds, req.team_id, DECISIONS_BUDGET_SECONDS - 15)
     try:
         body = fut.result(timeout=DECISIONS_BUDGET_SECONDS)
     except FuturesTimeout:
         raise HTTPException(503, "series still computing; retry in a minute")
+    if any("fallback" in r for r in body["series"]):
+        return body  # partial: do not freeze it
     stored[key] = body
     try:
         SERIES.write_text(json.dumps(stored, indent=1, default=str))
@@ -403,5 +426,3 @@ def asof(ticker: str, on: date):
     except Exception as e:  # noqa: BLE001
         raise HTTPException(400, str(e))
 
-
-threading.Thread(target=_warm, daemon=True).start()

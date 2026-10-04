@@ -87,3 +87,15 @@ def test_series_grid_and_records(ds):
     decisions, errors = validate_decision_series(recs)
     assert not errors, errors
     assert len(decisions) == len(recs) >= 4
+
+
+def test_series_time_budget_reuses_earlier_books_only(ds):
+    from statevector.backtest import validate_decision_series
+    dc._BOOKS.clear()
+    days = list(ds.trading_days())
+    end = days[-1]
+    start = (pd.Timestamp(end) - pd.Timedelta(days=28)).date()
+    recs = dc.series(start, end, ds=ds, budget_s=0)["series"]
+    assert "fallback" not in recs[0] and all("fallback" in r for r in recs[1:])
+    assert all(r["target_holdings"] == recs[0]["target_holdings"] for r in recs[1:])  # older book, no lookahead
+    assert not validate_decision_series(recs)[1]
