@@ -85,7 +85,7 @@ Cash is an explicit line in the portfolio (`CASHHOLDING`), so under stress a dec
 The replay calls our model one decision at a time, so any use of future data would show up as a backtest the live model cannot repeat. Rules we follow:
 
 - **Fundamentals by filing date.** Each quarterly row becomes usable the day after its filing date (the filing calendar has no acceptance times). Rows that cannot be matched to a filing use a conservative 60-day lag after period end. Share on the lag: 34% of 2018 rows, 13% in 2023, 2% in 2026. EPS in the data is already restated for later splits, which keeps earnings yield consistent but is not exactly what an investor saw on the day; the ratio is unaffected.
-- **Prices.** Each decision uses data through the prior close only (`signal_lag = 1`). The current backtest then trades at the decision day's close, matching the judges' own `statevector.backtest` engine; the replay format trades at the next day's open, and the research backtest moves to next-open fills before the final numbers [pending].
+- **Prices.** Each decision uses data through the prior close only (`signal_lag = 1`). The reported backtest trades at the decision day's close, matching the judges' own `statevector.backtest` engine. Filling at the open instead, as the replay format does, gives 19.0% a year against 17.6%, so the close-fill numbers are the conservative ones.
 - **No hidden clock.** The decision function takes the information cutoff as its input and never reads today's date or the last date in the data.
 - **Frozen model.** All settings live in `config/model.json`; nothing is refitted during the replay. The sector clusters are fitted once on the year before the backtest starts.
 - **Holdback.** The last six months of data are not used for any choice until the final go/no-go.
@@ -97,7 +97,7 @@ The replay calls our model one decision at a time, so any use of future data wou
 | --- | --- | --- |
 | Five-bucket factor test | A factor that is "too good" (very high t-stat or monotone in every year) | Passed: no factor stands out; every t-stat below 1.5 |
 | One-day signal delay | Performance improves with older data | Passed: return falls from 17.6% to 13.7% a year |
-| Random books | Random 15-stock books do as well as ours | Passed: beats 5 of 5 (random books 8.0% to 14.3% a year) |
+| Random books | Random 15-stock books do as well as ours | Passed: beats 20 of 20 on return (random median 10.1%, best 15.2% a year); the best random Sharpe ratio is level with ours |
 | Drop one factor | One factor carries all of the return | Done: no single factor carries it; removing momentum or quality costs the most (13.7% to 7.3% and 8.5% a year) |
 
 ## 6. Organizer answers
@@ -119,10 +119,11 @@ What we were told by the organizers during the event, and how the model follows 
 - **Survivorship bias.** The universe is today's listed companies. Stocks that collapsed and were delisted are missing from the history, which flatters any backtest, especially a concentrated one. It likely also makes quality and value look worse than they are, since the weak firms in the history are the ones that survived. The live test month has no such bias.
 - **A narrow universe.** The universe has almost no financials and no energy majors (JPM, BAC, XOM, CVX are absent) and no SPY, so the book is effectively ex-financials and cannot hedge with an index.
 - **Few stress episodes.** The cash rule rests on about three: 2018 Q4, 2020 and 2022. Its thresholds are priors fixed before testing, not fitted.
+- **Results depend on how stocks are grouped.** Refitting the return clusters every year cuts the backtest from 17.6% to 14.2% a year; the live book's clusters resemble the refit version.
 - **Skill is not proven.** Beta is about 1 and alpha is +5.7% a year, but with t = 1.27 it is not statistically significant, and the factor and rule choices were made on the same sample (section 9).
 - **Costs are modeled, not measured.** Hence the double-cost rerun.
 - **Unclustered names.** 431 newer names lack a year of history before the 2018 cluster fit and sit in one "other" group that the 30% cap does not cover (up to 47% of the book in 2024); refitting yearly would fix this. The live book fits its clusters on the year before its own start date, so its groups differ from the backtest's.
-- **Signals decay fast.** A one-day delay cuts return from 17.6% to 13.7% a year, so the replay's next-open fills may cost some return; that test is still to run.
+- **Signals decay fast.** A one-day delay cuts return from 17.6% to 13.7% a year, but filling at the next open, as the replay does, slightly improves results (19.0% against 17.6% a year).
 
 ## 8. What we tried and cut
 
@@ -231,6 +232,30 @@ These numbers are the shipped model, v1.2, replayed weekly from January 2018 to 
 | Double trading costs | 16.6% a year (vs 17.6%) | Still ahead of the equal-weight universe (11.5%). |
 | No-trade band and dropping the volatility premium | Turnover 21x to 7.5x a year; costs about 2.2% to 0.8% a year (v1 to v1.2, 2018 to 2026) | Most of the original cost came from resetting weights weekly and from a fast-moving factor. |
 
+#### Second robustness round (`explore/09_robustness.py`)
+
+Run on v1.2 over the same window; results in `artifacts/robustness.json`. Measurement only: nothing in the model changed.
+
+| Test | Result | What it means |
+| --- | --- | --- |
+| Next-open fills (the replay's convention) instead of the close | 19.0% a year, Sharpe 0.88, max drawdown 29.7% (close fills: 17.6%, 0.83, 29.9%) | Filling at the open does not hurt; it helps slightly, because the new book is in place for the trade day. The close-fill numbers above are the conservative ones. |
+| 20 random books, same rules and the same cash dial | Random: median 10.1% a year (5.6% to 15.2%), Sharpe median 0.60 (0.36 to 0.83). Model beats all 20 on return and on Sharpe | The scores add return. On Sharpe the best random book (0.83) is level with the model, so risk-adjusted skill is less clear than the return gap. |
+| Calendar years | Beats equal weight in 6 of 9 years and the S&P 500 in 7 of 9 (2026 is two months) | See the table below. One year, 2024 (+50%), carries much of the edge; the model lagged badly in 2023. |
+| Start date (annualized from each January to Feb 2026) | From 2018: 17.6% vs 11.5% EW / 12.4% S&P. 2019: 20.4% / 14.6% / 15.3%. 2020: 19.6% / 12.4% / 13.2%. 2021: 18.5% / 9.8% / 12.7%. 2022: 13.9% / 6.0% / 9.4% | Ahead of both benchmarks from every start year. Sliced from the full run, so the starting book carries over. |
+| Clusters refit every January on the prior year (unclustered names fall from 431 in 2018 to 61 in 2026) | 14.2% a year, Sharpe 0.69, max drawdown 34.4% | Results are sensitive to how stocks are grouped: 3.4 points a year from the grouping alone. The unclustered names are not the cause (15.5% of the book on average, about 16% of the gains). **The live book fits its clusters on the most recent year, which is closer to this variant, so 14% is a more honest anchor than 17.6%.** |
+
+| Year | nabla | Equal weight | S&P 500 |
+| --- | --- | --- | --- |
+| 2018 | -0.9% | -8.5% | -6.2% |
+| 2019 | +25.5% | +29.0% | +28.9% |
+| 2020 | +25.4% | +27.1% | +16.3% |
+| 2021 | +39.6% | +26.9% | +26.9% |
+| 2022 | -18.4% | -19.5% | -19.4% |
+| 2023 | +12.6% | +21.7% | +24.2% |
+| 2024 | +49.9% | +11.6% | +23.3% |
+| 2025 | +17.9% | +10.8% | +16.4% |
+| 2026 (Jan to Feb) | +5.1% | +4.8% | +0.9% |
+
 #### Market exposure and the plan's beta band
 
 The plan targets a beta of 1.10 to 1.20 in normal markets. The shipped book is already inside that band without forcing it: rung 1 (no cash dial) measured 1.11. With the cash dial, beta over the whole period is about 0.96 because a quarter of the book is cash in stress weeks. Our earlier guess of 1.4 to 1.6, from the 2023 to 2026 run's volatility, was wrong; that window's excess return came from stock selection in a strong market, not leverage. No beta constraint is added.
@@ -249,7 +274,7 @@ The first v1 runs (five factors, no no-trade band) reported 37% a year on 2023 t
 | --- | --- | --- |
 | Full backtest from 2018 | Does it hold up through 2018 Q4, the 2020 crash and the 2022 bear market? | Done: lost less than both benchmarks in 2018 Q4 and 2022; lagged equal weight in 2020 |
 | Beta and alpha vs the S&P 500 | How much of the return is market exposure? | Done: beta about 1.1 without the dial, 0.96 with it; alpha positive, not significant |
-| Random-book test | Do 15 random liquid stocks each week do as well? | Done: beats 5 of 5 |
+| Random-book test | Do 15 random liquid stocks each week do as well? | Done: beats 20 of 20 on return; best random Sharpe level with ours |
 | One-day signal delay | Does performance fall when signals are a day late? (look-ahead check) | Done: falls (17.6% to 13.7%), no rise; signals decay fast |
 | Double costs | Does it still beat equal weight? | Done: yes |
 | Drop one factor at a time | Which factors earn their place? | Done: volatility premium dropped (v1.1); the other four stay |
@@ -257,7 +282,7 @@ The first v1 runs (five factors, no no-trade band) reported 37% a year on 2023 t
 | Five-bucket factor test | Does each factor point the right way, in most years? | Done: no factor is reliable alone over 2018 to 2026 |
 | Sample holdings (`explore/06_sample_holdings.py`) | Do the names make sense; does the stress flag fire in 2020 and 2022? | Done: recognizable, liquid names (one under $10: CZR in March 2020); stress on in March 2020 and June 2022 (16 weeks in 2020, 44 in 2022) |
 | Crowding check | Do we just hold last year's biggest winners? | Done: no, 2 of 15 overlap |
-| Next-open fills | Do results hold when trades fill at the next open, as in the replay? | [pending] |
+| Next-open fills | Do results hold when trades fill at the next open, as in the replay? | Done: yes, slightly better (19.0% a year) |
 | Held-back six months | The honest out-of-sample check | Untouched until the go/no-go |
 
 

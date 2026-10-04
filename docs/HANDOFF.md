@@ -24,11 +24,19 @@ Overnight run (cloud session, Sun ~1-3 AM). Everything below is pushed to main.
 
 **Still to do (in priority order)**
 1. **Replay record writer:** `decide(information_cutoff)` returning the judged record (schema_version, team_id, model_id, decision_id, cutoff 16:00 ET, decision 16:15, execution next open from the holiday calendar, CASHHOLDING line). Not built; this is what the judges score.
-2. **Next-open fills** in the research backtest. The one-day-delay result says timing matters, so check whether next-open fills cost return.
+2. ~~Next-open fills~~ done: they slightly improve results (see below).
 3. **Freeze the clusters.** The live book fits clusters on the year before its own start (62 unclustered), the backtest on 2017 (431 unclustered), so live and backtest group stocks differently. Fit once at the cutoff, save to config, use everywhere; record the git commit and data hash in `config/model.json`.
 4. Redeploy and rerun check.py against the deployed URL (allow a minute for the cache to warm after a cold start).
 5. Go/no-go on the six held-back months (`run_backtest.py --include-holdback`), then freeze.
 6. Deck: confirm with Ezekiel that the slide numbers match his runs (his rung-1 run says 19.2%/yr, ours 18.8%; small setup differences).
+
+**Second overnight round (robustness, measurement only; `explore/09_robustness.py`, AUDIT section 9):**
+- Next-open fills (replay convention): 19.0%/yr, Sharpe 0.88: slightly better than close fills. Item 2 below is answered.
+- 20 random books with the same cash dial: median 10.1%/yr (5.6% to 15.2%); model beats all 20 on return; best random Sharpe 0.83 is level with ours.
+- By year: beats S&P 7 of 9, equal weight 6 of 9; 2024 (+50%) carries much of the edge, 2023 lagged (+13% vs +24%).
+- Ahead of both benchmarks from every start year 2018 to 2022.
+- **Clusters refit yearly: 14.2%/yr, Sharpe 0.69, drawdown 34%.** Results depend on the grouping. The live book fits clusters on the latest year (closer to this variant), so quote ~14% as the honest anchor and decide with Ezekiel how to freeze clusters (item 3).
+- New: `sim.run(open_=...)` next-open option (off by default), `data.load_opens`, tests.
 
 ## Who and what
 - Team nabla at the RowdyHacks finance track (UTSA Investment Society): **Jesse** (finance: factors, risk rules, audit doc, pitch; GitHub `FroyoMojo`) and **Ezekiel** (quant: pipeline, backtest, API, deploy; GitHub `envezdezeke`, repo owner).

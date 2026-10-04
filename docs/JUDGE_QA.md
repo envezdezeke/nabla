@@ -3,7 +3,7 @@
 One or two sentences each, for the Q&A after the pitch. Numbers come from `docs/AUDIT.md`; replace each [pending] with the result once it lands.
 
 **One month is mostly luck. How is this skill?**
-It isn't provable in one month, and we don't claim it: what we claim is a process, made of published signals, fixed rules and an eight-year weekly replay that beat the equal-weight universe and the S&P 500 after costs (17.6% vs 11.5% and 12.4% a year). It also beat all five random books (15 random liquid stocks under the same rules, 8% to 14% a year), so the scores add something, though alpha (+5.7% a year, t = 1.3) is not statistically significant.
+It isn't provable in one month, and we don't claim it: what we claim is a process, made of published signals, fixed rules and an eight-year weekly replay that beat the equal-weight universe and the S&P 500 after costs (17.6% vs 11.5% and 12.4% a year). It also beat all 20 random books (15 random liquid stocks under the same rules: median 10% a year, best 15%), so the scores add return, though alpha (+5.7% a year, t = 1.3) is not statistically significant and one year, 2024, carries much of the edge.
 
 **How do you know there's no look-ahead?**
 Every decision uses data through the prior close only, fundamentals count from the day after their filing date (60 days after period end when no filing matches), and the decision function takes the cutoff time as its input and never reads today's date. No factor was suspiciously good in our five-bucket test (every t-stat below 1.5), and when we feed the model data one day late, return falls (17.6% to 13.7% a year) rather than rising.
