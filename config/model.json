@@ -1,6 +1,6 @@
 {
-  "version": "v1.1",
-  "description": "Rung 1 of plan v5: equal-weight top 15 by a fixed five-factor composite, with liquidity filter, sector and earnings caps, entry/exit bands. No regime dial, no optimizer, no options. v1.1: volatility premium weight set to 0 after the drop-one-factor audit (see docs/AUDIT.md).",
+  "version": "v1.2",
+  "description": "Rung 1 of plan v5: equal-weight top 15 by a fixed five-factor composite, with liquidity filter, sector and earnings caps, entry/exit bands. No regime dial, no optimizer, no options. v1.1: volatility premium weight set to 0 after the drop-one-factor audit (see docs/AUDIT.md). v1.2: 25% CASHHOLDING when the SPX stress flag is on (panic rule tested and rejected).",
   "factor_weights": {
     "momentum": 1.0,
     "guidance_velocity": 1.0,
@@ -40,7 +40,7 @@
   },
   "regime": {
     "panic_momentum": false,
-    "stress_cash": 0.0,
+    "stress_cash": 0.25,
     "note": "rung 2 = panic_momentum true; rung 3 = stress_cash 0.25. Flags use SPX only (funding stress left out so the backtest and the live book use identical inputs)."
   }
 }

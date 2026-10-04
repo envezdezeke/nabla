@@ -280,3 +280,21 @@ The drop-one-factor backtest on the full v1 book (2018 to the six held-back mont
 **Decision:** the volatility premium weight is 0 (`config/model.json`, version `v1.1`). The reason is mechanical as well as statistical: it is built from 21-day realized and 30-day implied volatility, which move every day, so it reshuffled the top 15 weekly and tripled turnover; the five-bucket test also found it pointing the wrong way. The other four stay because removing each one lowered return.
 
 **Caveat:** the factor was removed using the same 2018 to 2026 sample the backtest reports, so v1.1's backtest is flattered. The six held-back months are the honest check at the go/no-go. Alpha is still not statistically significant (t = 1.24).
+
+
+## Decision log: regime ladder (v1.2)
+
+`scripts/audit.py --only ladder`, 2018 to the six held-back months, plan costs, no-trade band, four-factor composite. Flags from SPX only: stress on in 18% of weeks, panic in 12%.
+
+| Variant | Annual return | Sharpe | Max drawdown | Beta | Bad month (5th pct) | Alpha (t) |
+| --- | --- | --- | --- | --- | --- | --- |
+| Rung 1 (v1.1) | 19.2% | 0.82 | 35.1% | 1.11 | -8.8% | 5.7% (1.24) |
+| Rung 2: + panic momentum weight | 16.2% | 0.72 | 35.8% | 1.10 | -9.0% | 3.1% (0.69) |
+| Rung 3: + panic + 25% stress cash | 15.2% | 0.74 | 30.5% | 0.96 | -8.1% | 3.7% (0.82) |
+| Cash only: + 25% stress cash | 17.4% | 0.82 | 29.9% | 0.96 | -8.2% | 5.5% (1.23) |
+
+**Panic rule rejected.** Halving momentum in panic cost 3% a year and did not reduce drawdown; on this sample momentum recovered quickly after panic periods.
+
+**Shipped: cash only (v1.2).** Same Sharpe and alpha as rung 1, 5 points less maximum drawdown, beta 0.96, for about 1.8% a year less return (the dial waits two calm weeks before re-investing, so it misses part of rebounds). It changes nothing unless the stress flag is on, so in a calm judged month the book is identical to rung 1; it is insurance against a sell-off inside the 21 days. This does not meet the plan's strict "beat the previous rung on return" rule; the team chose it for the drawdown and beta at equal Sharpe.
+
+Deviation from plan v5: stress uses SPX volatility only (funding stress left out so backtest and live use identical inputs), and the stress preset's low-beta swap is not built.
