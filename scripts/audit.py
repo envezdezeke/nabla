@@ -12,6 +12,13 @@ Tests (each is a full weekly backtest with the plan's costs and the no-trade ban
   cost2x    double trading costs
   drop_X    composite without factor X (does each factor earn its place?)
   ladder    rung 1 (as v1), rung 2 (+ panic momentum weight), rung 3 (+ 25% cash in stress)
+  returns   total-return variants vs base, each one change (pre-registered rule in docs/AUDIT.md):
+            no_cash (stress cash 0), beta_tilt (beta weight 0.5), mom2 (momentum weight 2),
+            pead (earnings-surprise factor weight 1), all4 (all four, informational only).
+            Each gets a paired block-bootstrap p-value and Newey-West t on its gap vs base,
+            and a deflated Sharpe over all variants tried.
+  ic        weekly rank IC of each factor and the composite vs next-week returns
+            (all liquid names, so far more power than a 15-name book), Newey-West t
 Writes artifacts/audit.json.
 """
 from __future__ import annotations
@@ -29,7 +36,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from statevector import Dataset  # noqa: E402
 
-from nabla import book, data, factors, model, pipeline, regime, sim  # noqa: E402
+from nabla import book, clusters, combine, data, factors, model, pipeline, regime, sim, stats  # noqa: E402
 
 
 def random_strategy(groups, cfg, seed):
@@ -60,10 +67,50 @@ def capm(port: pd.Series, mkt: pd.Series) -> dict:
             "corr": float(x["p"].corr(x["m"]))}
 
 
+def ic_test(inp, sv, cfg, start, end) -> dict:
+    """Weekly cross-sectional rank IC over all liquid names: each factor's z-score
+    (within cluster, as the composite uses it) at the signal date vs the return
+    from the rebalance close to the next rebalance close. Also the top-minus-bottom
+    quintile return per week. Weeks do not overlap, so the t-stats are honest."""
+    close, volume = inp.close, inp.volume
+    dates = close.index
+    lo, hi = dates.searchsorted(start), dates.searchsorted(end, side="right")
+    reb = [i for i in sim.rebalance_days(dates) if max(lo, sim.YEAR + 2) <= i < hi]
+    sv_by = {d: g for d, g in sv.groupby("date")}
+    names = [*factors.FACTORS, "composite"]
+    ic, spread = {f: [] for f in names}, {f: [] for f in names}
+    for n, (i, nxt) in enumerate(zip(reb[:-1], reb[1:])):
+        sig = dates[i - 1]
+        ft = factors.factor_table(close.iloc[:i].iloc[-sim.YEAR - 2:], volume.iloc[:i].iloc[-sim.YEAR - 2:],
+                                  sv_by.get(sig, pd.DataFrame(columns=["ticker"])), inp.fund, inp.splits)
+        pool = ft[factors.liquid(ft, **cfg["liquidity"])]
+        g = clusters.at(inp.groups, sig)
+        fwd = (close.iloc[nxt] / close.iloc[i] - 1).reindex(pool.index)
+        for f in names:
+            z = (combine.composite(pool, g, cfg["factor_weights"]) if f == "composite"
+                 else combine.zscore(pool[f], g) if pool[f].notna().sum() >= 50 else None)
+            if z is None:
+                continue
+            ic[f].append(stats.rank_ic(z, fwd))
+            q = pd.qcut(z.rank(method="first"), 5, labels=False)
+            spread[f].append(float(fwd[q == 4].mean() - fwd[q == 0].mean()))
+        if n % 50 == 0:
+            print(f"  ic week {n}/{len(reb)} ({dates[i].date()})", flush=True)
+    res = {}
+    for f in names:
+        x, s = pd.Series(ic[f]).dropna(), pd.Series(spread[f]).dropna()
+        if len(x) < 10:
+            continue
+        res[f"ic_{f}"] = {"weeks": len(x), "mean_ic": float(x.mean()), "ic_t_nw": stats.newey_west_t(x),
+                          "hit_rate": float((x > 0).mean()), "q5_q1_ann": float(s.mean() * 52),
+                          "q5_q1_t_nw": stats.newey_west_t(s)}
+    return res
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--start")
-    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov")
+    ap.add_argument("--only", help="comma list of: base,random,delay,cost2x,drop,ladder,markov,returns,ic")
     ap.add_argument("--seeds", type=int, default=5)
     args = ap.parse_args()
     want = set((args.only or "base,random,delay,cost2x,drop").split(","))
@@ -92,11 +139,35 @@ def main() -> None:
                       no_trade_band=c["book"].get("no_trade_band"), **kw)
         m = sim.metrics(res["daily"])
         m.update(capm(res["daily"]["ret"], spx))
+        daily[name] = res["daily"]["ret"]
         return m
 
-    out = {}
-    if "base" in want:
+    out, daily = {}, {}
+    if "base" in want or "returns" in want:
         out["base"] = run("base", model.strategy(inp.groups, cfg, wf))
+    if "returns" in want:
+        variants = {"no_cash": {"regime": {"stress_cash": 0.0}},
+                    "beta_tilt": {"factor_weights": {"beta": 0.5}},
+                    "mom2": {"factor_weights": {"momentum": 2.0}},
+                    "pead": {"factor_weights": {"pead": 1.0}}}
+        variants["all4"] = {k: {kk: vv for v in variants.values() for kk, vv in v.get(k, {}).items()}
+                            for k in ("regime", "factor_weights")}
+        for name, change in variants.items():
+            c = json.loads(json.dumps(cfg))
+            for sect, kv in change.items():
+                c[sect] = {**c.get(sect, {}), **kv}
+            out[name] = run(name, model.strategy(inp.groups, c, wf), cfg=c)
+        tried = ["base", *variants]
+        srs = [daily[k].mean() / daily[k].std() for k in tried]
+        for k in tried:
+            out[k].update(stats.deflated_sharpe(daily[k], len(tried), srs))
+            if k != "base":
+                out[k].update(stats.paired_bootstrap(daily[k], daily["base"]))
+                b = out["base"]
+                out[k]["passes_rule"] = bool(out[k]["ann_return"] - b["ann_return"] >= 0.01
+                                             and out[k]["max_drawdown"] - b["max_drawdown"] <= 0.05)
+    if "ic" in want:
+        out.update(ic_test(inp, sv, cfg, start, end))
     if "markov" in want:  # stress method comparison, 25% cash dial in every row
         years_n = max((end - start).days / 365.25, 1e-9)
         for m in ("rule", "hmm_trend", "hmm"):
@@ -133,16 +204,28 @@ def main() -> None:
             c["factor_weights"][f] = 0.0
             out[f"drop_{f}"] = run(f"drop {f}", model.strategy(inp.groups, c, wf), cfg=c)
 
-    cols = (["switches_per_year", "weeks_flagged"] if "markov" in want else []) + ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
+    (ROOT / "artifacts").mkdir(exist_ok=True)
+    if "ic" in want:
+        ic = pd.DataFrame({k: v for k, v in out.items() if k.startswith("ic_")}).T
+        pd.set_option("display.width", 200)
+        print("\nweekly rank IC, all liquid names (|t| > 2 ~ unlikely to be luck)")
+        print(ic.astype(float).round(4).to_string())
+        out = {k: v for k, v in out.items() if not k.startswith("ic_")}
+        (ROOT / "artifacts" / "audit_ic.json").write_text(json.dumps(ic.to_dict(orient="index"), indent=2))
+        print("wrote artifacts/audit_ic.json")
+    if not out:
+        return
+    extra = ["gap_ann", "gap_t_nw", "p_gap_le_0", "dsr", "passes_rule"] if "returns" in want else []
+    cols = (["switches_per_year", "weeks_flagged"] if "markov" in want else []) + extra + ["total_return", "ann_return", "ann_vol", "sharpe", "max_drawdown", "beta", "alpha_ann",
             "alpha_t", "turnover_per_year", "cost_total", "roll21_median", "roll21_p05"]
-    table = pd.DataFrame(out).T[cols]
+    table = pd.DataFrame(out).T.reindex(columns=cols)
     rnd = table[table.index.str.startswith("random")]
     if len(rnd) and "base" in table.index:
         better = int((rnd["total_return"] < table.loc["base", "total_return"]).sum())
         print(f"\nv1 beats {better} of {len(rnd)} random books on total return")
     pd.set_option("display.width", 200)
     print(table.astype(float).round(3).to_string())
-    (ROOT / "artifacts").mkdir(exist_ok=True)
+
     (ROOT / "artifacts" / "audit.json").write_text(json.dumps(out, indent=2, default=str))
     print("wrote artifacts/audit.json")
 

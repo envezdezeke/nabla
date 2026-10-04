@@ -43,6 +43,7 @@ CANDIDATES = {
 }
 
 FALLBACK_LAG = pd.Timedelta(days=60)
+PEAD_DAYS = pd.Timedelta(days=91)  # post-earnings drift fades within about a quarter
 TTM_MAX_SPAN = pd.Timedelta(days=300)  # four quarterly period ends fit inside ~9 months
 
 
@@ -104,7 +105,34 @@ def prepare(fund: pd.DataFrame, cal: pd.DataFrame | None) -> tuple[pd.DataFrame,
     f["date"] = pd.to_datetime(f["date"]).astype("datetime64[ns]")
     f = f.drop_duplicates(["ticker", "date"], keep="last").reset_index(drop=True)
     f["knowable"] = knowable_times(f, cal)
+    f["sue"] = sue(f)
     return f, {"fundamental_columns": cols}
+
+
+def sue(f: pd.DataFrame) -> pd.Series:
+    """Standardized unexpected earnings per (ticker, quarter): EPS minus EPS of the
+    same quarter a year earlier (seasonal random walk), divided by the standard
+    deviation of the previous eight such changes (at least four). Uses only
+    earlier quarters, which were filed before this one, so it is point-in-time
+    once the row is knowable."""
+    if "eps" not in f:
+        return pd.Series(np.nan, index=f.index)
+    o = f.sort_values(["ticker", "date"])
+    g = o.groupby("ticker")
+    gap = (o["date"] - g["date"].shift(4)).dt.days
+    d = (o["eps"] - g["eps"].shift(4)).where(gap.between(330, 400))
+    sd = d.groupby(o["ticker"]).transform(lambda x: x.shift(1).rolling(8, min_periods=4).std())
+    return (d / sd.where(sd > 0)).replace([np.inf, -np.inf], np.nan).reindex(f.index)
+
+
+def pead(f: pd.DataFrame, cutoff: pd.Timestamp) -> pd.Series:
+    """SUE of each ticker's latest knowable quarter, if it became public within
+    PEAD_DAYS of the cutoff; otherwise NaN (neutral in the composite)."""
+    if "sue" not in f:
+        return pd.Series(dtype=float)
+    vis = f[f["knowable"] <= cutoff].sort_values(["ticker", "date"]).groupby("ticker").tail(1)
+    vis = vis[vis["knowable"] > cutoff - PEAD_DAYS]
+    return vis.set_index("ticker")["sue"]
 
 
 def ttm(f: pd.DataFrame, cutoff: pd.Timestamp) -> pd.DataFrame:
@@ -208,4 +236,6 @@ def quality_value(f: pd.DataFrame, price: pd.Series, cutoff: pd.Timestamp,
     q, qname = quality(t)
     guard = splits_in_window(splits, t, cutoff) if SPLIT_GUARD else pd.Series(False, index=t.index)
     v, vname = value(t, price, guard)
-    return pd.DataFrame({"quality": q, "value": v}), {"quality_def": qname, "value_def": vname}
+    pe = pead(f, cutoff).reindex(price.index)
+    return (pd.DataFrame({"quality": q, "value": v, "pead": pe}),
+            {"quality_def": qname, "value_def": vname})

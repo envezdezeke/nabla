@@ -11,7 +11,8 @@ import pandas as pd
 from . import fundamentals
 
 MONTH, YEAR = 21, 252
-FACTORS = ["momentum", "guidance_velocity", "quality", "value", "vol_premium"]
+FACTORS = ["momentum", "guidance_velocity", "quality", "value", "vol_premium", "pead", "beta"]
+BETA_SHRINK = 0.67  # beta_shrunk = 0.67 * beta + 0.33 (plan v5 step 4)
 
 
 def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
@@ -19,6 +20,14 @@ def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
     rets = close.pct_change(fill_method=None)
     dv = close * volume
     last = close.iloc[-1]
+    # beta vs the equal-weight average of the universe over the window (~252 days).
+    # SPX is not in the price panel; for ranking names the two betas agree closely.
+    r = rets.iloc[1:]
+    mkt = r.mean(axis=1)
+    rc = r.sub(r.mean())
+    mc = mkt - mkt.mean()
+    beta = rc.mul(mc, axis=0).sum() / (mc ** 2).sum() if (mc ** 2).sum() > 0 else np.nan
+    beta = beta.where(r.notna().sum() >= 126)
     out = pd.DataFrame({
         "price": last,
         # 12-1 momentum: t-12m to t-1m, skipping the reversal-prone last month
@@ -27,6 +36,8 @@ def price_features(close: pd.DataFrame, volume: pd.DataFrame) -> pd.DataFrame:
         "adv20": dv.iloc[-20:].mean(),
         # Amihud x 1e6: mean |return| per dollar traded
         "amihud": (rets.abs() / dv.replace(0, np.nan)).iloc[-MONTH:].mean() * 1e6,
+        # shrunk toward 1; a linear map, so it changes the book-level number, not ranks
+        "beta": BETA_SHRINK * beta + (1 - BETA_SHRINK),
     })
     return out
 
@@ -52,11 +63,13 @@ def factor_table(close: pd.DataFrame, volume: pd.DataFrame, sv_day: pd.DataFrame
     # Unit differences in atm_iv only shift the log by a constant, so ranks are unaffected.
     ft["vol_premium"] = -np.log(col("atm_iv") / ft["rv21"])
     ft["days_to_next_report"] = col("days_to_next_report")
+    ft["pead"] = np.nan
     ft.attrs["fund_notes"] = {"quality_def": "unavailable", "value_def": "fcf_gap_state_vector"}
     if fund is not None and len(fund):
         cutoff = pd.Timestamp(close.index[-1]).normalize() + pd.Timedelta(hours=16)
         qv, notes = fundamentals.quality_value(fund, ft["price"], cutoff, splits)
         ft["quality"] = qv["quality"]
+        ft["pead"] = qv["pead"]
         if notes["value_def"] != "unavailable":
             ft["value"] = qv["value"]
         else:

@@ -353,3 +353,26 @@ Fits looked sensible from 2019 on (stress volatility 21-37% vs calm 7-10%, regim
 | hmm | 11.8% | 0.64 | 33.1% | -7.6% | 49% | 6.1 |
 
 Against the pre-registered rule, `hmm_trend` passes 2 (bad month), 4 (switches) and 5 (timing) but fails 3 (return 3.2 points lower, limit 1) and 1 (drawdown 0.1 point worse). **Not shipped; `regime.method` stays `rule`.** The HMM is faster, but it holds 25% cash in about 40% of weeks, and over 2018-2026 the cash cost more in missed gains than it saved in sell-offs. Thresholds were not retuned after seeing the result. On 2026-09-18 P(stress) was 0.01, so the choice would not have changed the book entering the judged window. A statistical jump model (penalized switching) is the documented next candidate if revisited.
+
+## Pre-registered: total-return variants (written before any real-data run)
+
+Goal: more total return without fitting the sample. Four single changes to v1.3, each built as an audit switch (off in `config/model.json`), run with `scripts/audit.py --only returns,ic` on 2018-01-01 to the cutoff minus the six held-back months, plan costs, weekly, same bands and caps.
+
+| Variant | Change | Why it could add return |
+| --- | --- | --- |
+| `no_cash` | `regime.stress_cash` 0 | the 25% stress cash cost return in rebounds (HMM test showed cash is expensive) |
+| `beta_tilt` | factor `beta` weight 0.5 | plan v5 targets book beta 1.1-1.2; scored mostly on return in a rising market. Beta is 252-day vs the equal-weight universe (SPX is not in the price panel), shrunk 0.67 beta + 0.33 |
+| `mom2` | momentum weight 2 (2:1:1:1) | momentum is the best-documented of the four |
+| `pead` | new factor `pead` weight 1 | post-earnings drift: SUE = EPS minus same quarter last year, over the std of the previous 8 such changes (min 4), live for 91 days after the filing is knowable, neutral otherwise. October is reporting season, so it is active in the judged window |
+| `all4` | all four together | informational only, not a ship candidate |
+
+Parameters above are fixed now and will not be retuned after the run.
+
+**Ship rule.** A variant passes if, vs base v1.3:
+1. annual return at least 1.0 point higher;
+2. max drawdown no more than 5 points worse;
+3. for factor variants, the factor itself shows up in the weekly rank IC test over all liquid names: mean IC positive with Newey-West t of at least 2 (`beta` for `beta_tilt`, `momentum` for `mom2`, `pead` for `pead`). `no_cash` has no factor and is judged on 1-2 only.
+
+If more than one passes, the combination of the passers is run once and ships if it also passes 1-2; otherwise the single passer with the highest annual return ships. The shipped candidate then sees the six held-back months once: it goes live unless it trails v1.3 there by more than 3 points. If nothing passes, v1.3 stays.
+
+**What the p-values can and cannot say.** The output also reports, per variant, the paired block-bootstrap p-value and Newey-West t of the daily return gap vs base, and a deflated Sharpe ratio. They are reported, not used as gates: a 15-name book tracks its variants with about 5-6% annual tracking error, so over ~7.5 years the standard error of an annual-return gap is about 2 points, and a 1-2 point improvement cannot reach t = 2. That is why rule 3 asks the factor to prove itself on the full cross-section (about 400 names a week, ~420 weeks), where the test has power. Trials so far on this sample: vol premium drop, panic rule, cash dial, two clustering methods, three HMM methods, and these five; the deflated Sharpe uses only the six in this run, so it is optimistic.
