@@ -19,9 +19,11 @@ average and 21-day volatility above its 80th percentile). The volatility premium
 drop-one-factor test; the panic momentum rule was tested and rejected. No optimizer, no
 options.
 
-Backtest, weekly, Jan 2018 to Feb 2026, costs included: **14.2% a year** vs 12.4% for the
-S&P 500 and 11.5% for the equal-weight liquid universe; Sharpe 0.70; max drawdown 33%.
-In-sample and survivorship-biased; every result, test and decision is in `docs/AUDIT.md`.
+Backtest, weekly, Jan 2018 to the data cutoff (Aug 2026), costs included: **14.9% a year** vs 13.0%
+for the S&P 500 and 12.1% for the equal-weight liquid universe; Sharpe 0.73 (S&P 0.73); max drawdown
+34% (S&P 34%). The model was built on Jan 2018 to Feb 2026 (14.2% vs 12.4%); the six months after were
+held back and used once: **+19.7%**, Sharpe 1.83, max drawdown 7.8%. 22 of 24 one-at-a-time setting
+changes still beat the S&P. Survivorship-biased; every result, test and decision is in `docs/AUDIT.md`.
 
 ## Run
 

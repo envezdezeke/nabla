@@ -2,13 +2,16 @@
 
 Read `CLAUDE.md` first (the v5 plan and rules), then this file, then `docs/AUDIT.md` (results and every decision).
 
-## Current state (v1.3, Sun midday)
+## Current state (v1.3, final numbers)
 
 - **Shipped model v1.3:** four signals (momentum, guidance, quality, value), top 15 equal weight with bands and caps, 25% `CASHHOLDING` under the stress flag, stock groups = consensus clusters refit each January on prior data, frozen in `config/clusters.json`. Live book `config/book.json` rebuilt under v1.3.
-- **Backtest (Jan 2018 to Feb 2026, costs included):** 14.2%/yr vs 12.4% S&P and 11.5% equal weight; Sharpe 0.70 (S&P 0.70); max drawdown 33% (S&P 34%); $1 to $2.93. The earlier 17.6% depended on one lucky grouping and is withdrawn.
-- **Robustness (v1.3):** next-open fills 13.2%; double costs 13.1%; one-day delay 12.4% (ties the S&P); beats 16 of 20 random books (median 10.1%); beats the S&P in 6 of 9 years; ahead from every start year 2018 to 2022; cash rule cuts worst drawdown 40% to 33%. Momentum and value carry the model; quality and guidance did not help on this sample (not retuned).
-- **Updated to v1.3:** AUDIT.md (section 9 rewritten), README, CLAUDE.md, JUDGE_QA.md, the pitch deck (all charts redrawn) and the pitch script. Raw results: `artifacts/v13/` (local, gitignored).
-- **Still open:** redeploy and rerun `check.py` against the deployed URL; go/no-go on the six held-back months, then freeze. The replay writer (`decide`) and frozen clusters are done.
+- **Headline (Jan 2018 to the cutoff, Aug 21 2026, costs included):** 14.9%/yr vs 13.0% S&P and 12.1% equal weight; Sharpe 0.73 (S&P 0.73); max drawdown 34% (S&P 34%); $1 to $3.31 (S&P $2.87). Matches `scripts/stress.py`.
+- **Held-back six months (Feb 23 to Aug 21 2026, opened once):** +19.7%, Sharpe 1.83, max drawdown 7.8% (S&P +11.1%, equal weight +10.2%).
+- **Development period (Jan 2018 to Feb 2026):** 14.2% vs 12.4%; the robustness tests (random books 16/20, delay 12.4%, next-open 13.2%, 2x costs 13.1%, drop-one signals) ran here. 22 of 24 one-at-a-time setting changes beat the S&P on the full window (AUDIT section 10).
+- **Open finding:** the backtest path depends on the window end (full run gives 13.7% over the development years vs 14.2%); cause not isolated (AUDIT section 7). Replay unaffected.
+- **Risk entering the judged month:** book beta about 1.65, about a quarter in chip and memory names; P(beat S&P over 21 days) about 49%. Beta cap pre-registered, result pending.
+- **Deck and gallery:** deck rebuilt on these numbers (13 slides, new holdout and 24-change slides); PNGs of every slide for the Devpost gallery. Charts: `docs/img/full/` (full window, `NABLA_FULL=1`), `docs/img/` (development).
+- **Still open:** redeploy and rerun `check.py` against the deployed URL.
 
 ## Earlier: overnight summary (Sun morning, v1.2; superseded numbers)
 

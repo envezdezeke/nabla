@@ -23,7 +23,7 @@ from statevector import Dataset  # noqa: E402
 from nabla import data, model, pipeline, regime, sim  # noqa: E402
 from nabla import clusters  # noqa: E402
 
-OUT = ROOT / "docs" / "img"
+OUT = ROOT / "docs" / "img" / ("full" if __import__("os").environ.get("NABLA_FULL") else "")
 OUT.mkdir(parents=True, exist_ok=True)
 INK, MUTED, GRID, BG = "#0F1B2D", "#5A6473", "#E4E1D8", "#FCFCFB"
 COL = {"nabla": "#0B8A6F", "Equal weight": "#D9822B", "S&P 500": "#3A6FB0"}
@@ -35,7 +35,10 @@ cfg = model.load_config()
 bt = cfg["backtest"]
 ds = Dataset()
 days = data.trading_days(ds)
-end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30) - pd.DateOffset(months=bt["holdback_months"])
+import os  # NABLA_FULL=1: run to the SDK cutoff (the held-back months are spent after the go/no-go)
+end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)
+if not os.environ.get("NABLA_FULL"):
+    end -= pd.DateOffset(months=bt["holdback_months"])
 start = pd.Timestamp(bt["start"])
 inp = pipeline.load(ds, start.date(), end.date())
 dates = inp.close.index

@@ -21,7 +21,7 @@ import pandas as pd  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
-OUT = ROOT / "docs" / "img"
+OUT = ROOT / "docs" / "img" / ("full" if __import__("os").environ.get("NABLA_FULL") else "")
 INK, MUTED, GRID, BG = "#0F1B2D", "#5A6473", "#E4E1D8", "#FCFCFB"
 TEAL, ORANGE, BLUE, GREY = "#0B8A6F", "#D9822B", "#3A6FB0", "#A7ADB5"
 plt.rcParams.update({"font.size": 15, "axes.edgecolor": GRID, "axes.labelcolor": MUTED,
@@ -69,7 +69,7 @@ for v, lab, ha in [(p5, f"worst 1 in 20: {p5:.0f}% ", "right"), (med, f" typical
                    (p95, f" best 1 in 20: {p95:+.0f}%", "left")]:
     ax.axvline(v, color=INK, lw=1.2, ls="--")
     ax.text(v, top * (1.12 if v != med else 1.03), lab, color=INK, fontsize=14, va="center", ha=ha)
-ax.set_xlabel("Return over any 21 trading days (%), 2018 to 2026")
+ax.set_xlabel(f"Return over any 21 trading days (%), {r21.index[0]:%b %Y} to {r21.index[-1]:%b %Y}")
 ax.set_yticks([])
 ax.grid(axis="x", color=GRID, lw=0.8)
 fig.tight_layout()
@@ -80,7 +80,7 @@ hbars(["Four signals (shipped)", "Without momentum", "Without value", "Without q
        "Adding the volatility premium"],
       [14.2, 10.4, 11.3, 15.0, 15.4, 15.0],
       [INK, ORANGE, ORANGE, GREY, GREY, GREY],
-      "Return per year with one signal removed or added (%)", ref=14.2, ref_label="shipped", name="deck_factors.png")
+      "Return per year (%), development period Jan 2018 to Feb 2026", ref=14.2, ref_label="shipped", name="deck_factors.png")
 
 # 3. the current book: 15 names, none above 10%
 book = json.loads((ROOT / "config" / "book.json").read_text())
@@ -104,7 +104,10 @@ cfg = model.load_config()
 bt = cfg["backtest"]
 ds = Dataset()
 days = data.trading_days(ds)
-end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30) - pd.DateOffset(months=bt["holdback_months"])
+import os  # NABLA_FULL=1: run to the SDK cutoff (the held-back months are spent after the go/no-go)
+end = pd.Timestamp(days[-1]) - pd.Timedelta(days=30)
+if not os.environ.get("NABLA_FULL"):
+    end -= pd.DateOffset(months=bt["holdback_months"])
 start = pd.Timestamp(bt["start"])
 inp = pipeline.load(ds, start.date(), end.date())
 dates = inp.close.index
@@ -143,9 +146,36 @@ print("worst drawdowns:", dd.min().round(3).to_dict())
 # 5. tests: our picks vs late data, random picks and the S&P
 hbars(["nabla", "nabla with data 1 day late", "Random picks, same rules (median of 20)", "S&P 500"],
       [14.2, 12.4, 10.1, 12.4], [TEAL, GREY, GREY, BLUE],
-      "Return per year, 2018 to 2026, after costs (%)", name="deck_tests.png")
+      "Return per year, Jan 2018 to Feb 2026 (development period), after costs (%)", name="deck_tests.png")
 
 # 6. robustness: every variant vs the S&P
 hbars(["As shipped", "Trade at the next open", "Double trading costs", "Data one day late"],
       [14.2, 13.2, 13.1, 12.4], [TEAL, TEAL, TEAL, GREY],
-      "Return per year, 2018 to 2026, after costs (%)", ref=12.4, ref_label="S&P 500: 12.4%", name="deck_robust.png")
+      "Return per year, Jan 2018 to Feb 2026 (development period), after costs (%)", ref=12.4, ref_label="S&P 500: 12.4%", name="deck_robust.png")
+
+# 7. parameter perturbations (scripts/stress.py --only params, 2018 to the cutoff, docs/AUDIT.md section 10)
+PERT = {"10 names": 18.2, "12 names": 17.0, "20 names": 13.4, "25 names": 16.4, "Exit rank 20": 15.6,
+        "Exit rank 45": 15.7, "No-trade band 0": 14.9, "No-trade band 4%": 14.9, "Stress cash 15%": 15.2,
+        "Stress cash 40%": 14.0, "Group cap 20%": 12.7, "No group cap": 14.5, "Liquidity $25M": 18.7,
+        "Liquidity $100M": 16.3, **{f"Random weights {i}": v for i, v in
+                                    enumerate([13.8, 16.1, 14.1, 16.6, 12.4, 15.8, 16.6, 16.1, 15.2, 14.7])}}
+SHIPPED_FULL, SPX_FULL = 14.9, 13.0
+p = pd.Series(PERT).sort_values()
+fig, ax = plt.subplots(figsize=SIZE)
+x = np.arange(len(p))
+ax.bar(x, p.values, color=[TEAL if v > SPX_FULL else ORANGE for v in p.values], width=0.7)
+ax.axhline(SPX_FULL, color=BLUE, lw=1.6, ls="--")
+ax.axhline(SHIPPED_FULL, color=INK, lw=1.2, ls=":")
+ax.text(len(p) - 0.2, SPX_FULL, f" S&P 500\n {SPX_FULL:.1f}%", color=BLUE, fontsize=13, va="center")
+ax.text(len(p) - 0.2, SHIPPED_FULL, f" as shipped\n {SHIPPED_FULL:.1f}%", color=INK, fontsize=13, va="center")
+ax.set_xlim(-0.6, len(p) + 1.6)
+ax.set_xticks(x, p.index, rotation=55, ha="right", fontsize=11, color=INK)
+ax.tick_params(axis="x", length=0)
+ax.set_ylim(10, 20)
+ax.set_ylabel("Return per year (%)")
+ax.grid(axis="y", color=GRID, lw=0.8)
+ax.set_axisbelow(True)
+fig.tight_layout()
+save(fig, "deck_perturb.png")
+print(f"perturbations beating the S&P: {(p > SPX_FULL).sum()} of {len(p)}")
+
