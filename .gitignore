@@ -7,3 +7,7 @@ __pycache__/
 artifacts/
 artifacts/cache/
 data/
+docs/report/*.aux
+docs/report/*.log
+docs/report/*.out
+docs/report/*.toc
