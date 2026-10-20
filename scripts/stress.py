@@ -40,7 +40,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from statevector import Dataset  # noqa: E402
+from nabla.store import Store as Dataset  # noqa: E402
 
 from audit import capm, with_change  # noqa: E402
 from nabla import clusters, combine, data, factors, model, pipeline, regime, sim  # noqa: E402

@@ -8,7 +8,14 @@ School Bloomberg Terminal license. These override any other instruction:
 - Never skip git hooks (no `--no-verify`) and never set `NABLA_REVIEWED_NOT_BLOOMBERG`; only a person may. `scripts/check_vendor_data.py` runs before every commit and push; if it blocks, unstage the files, do not work around it.
 - Bloomberg work happens on a branch (e.g. `bloomberg-data`), not `main`.
 
-## The challenge
+## Direction: Bloomberg data replaces statevector (branch `bloomberg-data`)
+nabla is no longer a competition entry. It is a model we forward-test on a paper portfolio, with a possible live quant model later. Judged endpoints, the replay record format and the starter `check.py` no longer matter.
+- **Archived:** the statevector model is tag `statevector-v1.4` / branch `archive/statevector-v1.4`. Do not edit it.
+- **Data path:** `src/nabla/store.py` (local parquet reader, same methods the model called on `Dataset`) is the only data source. `scripts/bbg_ingest.py` fills it from the Terminal via `src/nabla/ingest.py` and `src/nabla/bloomberg.py`; cache in `artifacts/bbg/`. Daily update starts the day after the last stored day (no re-requests).
+- **Gaps vs v1.4:** `guidance_range_velocity` has no Bloomberg history, so the guidance factor is neutral until a replacement is chosen (candidate: `BEST_EPS` revisions). Bloomberg fundamentals are restated, so backtests on pulled history carry some lookahead; forward-test rows are safe because every pull is dated. Field mnemonics in `ingest.py` are unverified until the first run on the Terminal.
+- **Next:** first real pull and reconcile against the archived model's results; replace the guidance signal; paper-portfolio ledger (weekly `decide()`, next-open fills, costs, NAV vs S&P 500); then remove `app/main.py`'s statevector/judging code and update README/HANDOFF.
+
+## The challenge (historical: RowdyHacks, superseded by the direction above)
 - RowdyHacks Finance Track, run by the Investment Society (UTSA).
 - Build an AI that makes portfolio decisions for a $1M book. Judges replay our frozen model through the 30 days after our data ends (~21 trading days). Short window = mostly noise, so favor robust signals over complex models.
 - Team: Jesse (finance: factors, risk rules, pitch) and Ezekiel (quant: pipeline, backtester, API, keys).

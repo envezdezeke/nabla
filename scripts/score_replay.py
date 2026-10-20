@@ -23,7 +23,7 @@ import polars as pl
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from statevector import Dataset  # noqa: E402
+from nabla.store import Store as Dataset  # noqa: E402
 
 from nabla import data, factors  # noqa: E402
 from nabla.costs import trade_cost  # noqa: E402

@@ -141,9 +141,9 @@ def _compute(ds, decided: date, cfg: dict) -> dict:
 
 
 def _dataset(root: str):
-    from statevector import Dataset
+    from .store import Store
     if root not in _DS:
-        _DS[root] = Dataset(root)
+        _DS[root] = Store(root)
     return _DS[root]
 
 
