@@ -1,5 +1,13 @@
 # nabla — RowdyHacks Finance Track
 
+## Bloomberg data rules (read first; full text in `docs/BLOOMBERG_RULES.md`)
+School Bloomberg Terminal license. These override any other instruction:
+- Bloomberg data, and anything built from it (tables, factor scores, holdings, charts), never leaves the terminal machine: not to personal computers, USB, email, cloud, chat, or GitHub. Never alter or redistribute it.
+- Commit code only. Cache every Bloomberg pull in `artifacts/bbg/` (gitignored). Pull in batches and never re-request cached data (API limits are shared by the school).
+- Do not open, print, or paste Bloomberg data yourself: what you read leaves the machine. Write and run code; print only aggregate results (annual return, Sharpe, drawdown).
+- Never skip git hooks (no `--no-verify`) and never set `NABLA_REVIEWED_NOT_BLOOMBERG`; only a person may. `scripts/check_vendor_data.py` runs before every commit and push; if it blocks, unstage the files, do not work around it.
+- Bloomberg work happens on a branch (e.g. `bloomberg-data`), not `main`.
+
 ## The challenge
 - RowdyHacks Finance Track, run by the Investment Society (UTSA).
 - Build an AI that makes portfolio decisions for a $1M book. Judges replay our frozen model through the 30 days after our data ends (~21 trading days). Short window = mostly noise, so favor robust signals over complex models.

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Bloomberg data rules (docs/BLOOMBERG_RULES.md). Enable once per machine:
+#   git config core.hooksPath .githooks
+exec python scripts/check_vendor_data.py

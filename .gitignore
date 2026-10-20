@@ -11,3 +11,21 @@ docs/report/*.aux
 docs/report/*.log
 docs/report/*.out
 docs/report/*.toc
+
+# Bloomberg data never leaves the terminal machine (docs/BLOOMBERG_RULES.md)
+bbg/
+bloomberg/
+*.parquet
+*.feather
+*.arrow
+*.pkl
+*.pickle
+*.xlsx
+*.xls
+*.xlsm
+*.h5
+*.hdf5
+*.db
+*.sqlite
+*.csv
+*.tsv

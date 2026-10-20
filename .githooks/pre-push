@@ -1,0 +1,3 @@
+#!/bin/sh
+# Bloomberg data rules (docs/BLOOMBERG_RULES.md): check every commit about to be pushed.
+exec python scripts/check_vendor_data.py --outgoing
