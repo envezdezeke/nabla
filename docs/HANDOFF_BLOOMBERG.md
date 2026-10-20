@@ -9,6 +9,11 @@ This file holds no Bloomberg data: no tickers, weights or prices, only code and 
 - **Rule 6** (Claude may write and run code on Bloomberg data, never read or print it) was confirmed with the lab administrator by Ezekiel on 2026-10-20. Per-stock weights were pasted into one earlier chat by the user, so they reached Anthropic's servers; the lab administrator may need to hear about it. Do not repeat tickers or weights in files, commits or chat.
 - **Model run:** v1.4 ran end to end on cached Bloomberg data through 2026-10-20: 15 names, 0% cash, stress and panic flags off, factor coverage among liquid names: momentum 100%, guidance 100%, quality 93%, value 99%.
 
+## Two designs exist: reconcile first
+`origin/bloomberg-data` (commit `14067e7`, pushed 2026-10-20 17:36 from the user's account) is a separate Bloomberg design: `src/nabla/store.py` (local parquet `Store` replacing the statevector `Dataset`), `src/nabla/ingest.py`, `scripts/bbg_ingest.py`, `scripts/bbg_check.py`, its own `src/nabla/bloomberg.py`, tests, and a `CLAUDE.md` note that nabla is now a paper-portfolio forward test, no longer a competition entry. Field mnemonics there are unverified.
+
+This work is on branch `bloomberg-data-adapter` (same commits as the local `bloomberg-data`) so nothing on `origin/bloomberg-data` was overwritten. Both add `src/nabla/bloomberg.py` and both use `artifacts/bbg/` with different layouts, so they conflict. Next step: pick one data path, then port the other's useful parts. What this branch adds that the other lacks: a daily hit ledger, a coverage ledger that never re-requests, verified field names (see Data and limits; all returned data on the Terminal), the BEST_EPS guidance substitute, and a model run on real data. Ask the user before merging either way.
+
 ## What was built
 | File | Purpose |
 | --- | --- |
