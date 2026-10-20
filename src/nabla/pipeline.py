@@ -26,9 +26,9 @@ def load(ds, start: date, end: date, universe: list[str] | None = None) -> Input
     universe = universe or ds.universe()
     years = list(range(start.year, end.year + 1))
     sched = clusters.load()
-    # use the frozen fits only if they cover these years and this dataset's names
+    # use the frozen fits only if they cover these years and most of this universe's names
     need_fit = (sched is None or not set(years) <= set(sched)
-                or sched[max(sched)].index.isin(universe).mean() < 0.5)
+                or pd.Index(universe).isin(sched[max(sched)].index).mean() < 0.5)
     # a January fit needs up to 3 years of returns before it
     first = date(start.year - 4, 1, 1) if need_fit else data.window_start(start, WARMUP_DAYS)
     px = data.load_prices(ds, min(first, data.window_start(start, WARMUP_DAYS)), end, universe)
